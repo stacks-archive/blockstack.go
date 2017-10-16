@@ -6,6 +6,9 @@ import (
 	"log"
 )
 
+// StartBlock is the first block on the bitcoin blockchain with blockstack transactions
+const StartBlock = 373601
+
 // GetInfoResult is the go represenation of the getinfo rpc method
 type GetInfoResult struct {
 	ServerAlive        bool   `json:"server_alive"`

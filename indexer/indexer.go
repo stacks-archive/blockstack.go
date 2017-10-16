@@ -6,99 +6,72 @@ import (
 	"time"
 
 	"github.com/jackzampolin/go-blockstack/blockstack"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
-// StartBlock is the first block on the main bitcoin network
+// startBlock is the first block on the main bitcoin network
 const (
-	StartBlock = 373601
-	prefix     = "[indexer]"
-	mns        = "indexer"
+	startBlock = blockstack.StartBlock
+	logPrefix  = "[indexer]"
 )
 
 // StartIndexer returns a Indexer
 func StartIndexer(confs []blockstack.ServerConfig) {
 	i := &Indexer{
-		StartBlock:    StartBlock,
+		StartBlock:       startBlock,
+		Names:            make([]*Domain, 0),
+		NameZonefileHash: make(map[string]string),
+
 		currentClient: 0,
 		clients:       make([]*blockstack.Client, 0),
-		Names:         make([]*Domain, 0),
-		nameChan:      make(chan *Domain),
-		ProcessedTo: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: mns,
-			Subsystem: "blocks",
-			Name:      "processed",
-			Help:      "The block number that zonefiles have been fetched to",
-		}),
-		NumZonefiles: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: mns,
-			Subsystem: "zonefiles",
-			Name:      "number",
-			Help:      "Number of zonefiles in inventory",
-		}),
-		NumDomains: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: mns,
-			Subsystem: "domains",
-			Name:      "number",
-			Help:      "Number of domains initialized",
-		}),
-		NumResolved: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: mns,
-			Subsystem: "domains",
-			Name:      "resolved",
-			Help:      "Number of domains resolved",
-		}),
-		enrichChan:       make(chan *Domain),
-		NameZonefileHash: make(map[string]string),
+		nameChan:      make(chan string),
+		stats:         newIndexerStats(),
 	}
-
-	// Register Metrics with Prom handler
-	prometheus.MustRegister(i.NumZonefiles)
-	prometheus.MustRegister(i.ProcessedTo)
-	prometheus.MustRegister(i.NumResolved)
-	prometheus.MustRegister(i.NumDomains)
 
 	// Register Clients
 	for _, conf := range confs {
 		i.registerClient(conf)
-		log.Printf("%s Added core node %s:%v to rotation", prefix, conf.Address, conf.Port)
+		log.Printf("%s Added core node %s:%v to rotation", logPrefix, conf.Address, conf.Port)
 	}
 	// Kick off metrics goroutine
 	go i.setMetrics()
 
+	// Fetch the full list of names
+	log.Printf("%v Fetching full list of domains...", logPrefix)
+	i.getAllNames()
+
 	// Fetch Zonefiles
-	log.Printf("%v Indexing Blockstack Network from %v to %v", prefix, StartBlock, i.CurrentBlock)
-	i.FetchAllZonefiles()
+	log.Printf("%v Indexing Blockstack Network from %v to %v", logPrefix, startBlock, i.CurrentBlock)
+	i.fetchAllZonefiles()
 
 	// Create Domains
-	log.Printf("%v Create []*Domain from zonefiles", prefix)
-	i.ProcessNameZonefileMap()
+	log.Printf("%v Create []*Domain from zonefiles", logPrefix)
+	i.processNameZonefileMap()
 
 	// Resolve Domains
-	log.Printf("%v Resolving domains", prefix)
-	i.ResolveDomains()
+	log.Printf("%v Resolving domains", logPrefix)
+	i.resolveDomains()
 }
 
 // The Indexer talks to blockstack-core and resolves all
 // the domains and subdomains - hopefully
 type Indexer struct {
-	StartBlock    int
-	CurrentBlock  int
-	Names         []*Domain
-	ExpectedNames int
-
-	// Metrics for debugging
-	ProcessedTo  prometheus.Gauge
-	NumZonefiles prometheus.Gauge
-	NumDomains   prometheus.Gauge
-	NumResolved  prometheus.Gauge
-
-	currentClient    int
-	clients          []*blockstack.Client
+	StartBlock       int
+	CurrentBlock     int
+	Names            []*Domain
+	ExpectedNames    int
 	NameZonefileHash map[string]string
 
-	nameChan   chan *Domain
-	enrichChan chan *Domain
+	// stats holds the prometheus statss
+	stats *indexerStats
+
+	// clients is an array of blockstack-core nodes
+	clients []*blockstack.Client
+
+	// currentClient tracks the last used client out of a list
+	currentClient int
+
+	// nameChan handles the names coming back from fetching the full list of names
+	nameChan chan string
 
 	sync.Mutex
 }
@@ -106,9 +79,9 @@ type Indexer struct {
 func (i *Indexer) setMetrics() {
 	for {
 		i.Lock()
-		i.NumZonefiles.Set(float64(len(i.NameZonefileHash)))
-		i.NumDomains.Set(float64(len(i.Names)))
-		i.NumResolved.Set(float64(i.resolved()))
+		i.stats.NumZonefiles.Set(float64(len(i.NameZonefileHash)))
+		i.stats.NumDomains.Set(float64(len(i.Names)))
+		i.stats.NumResolved.Set(float64(i.resolved()))
 		i.Unlock()
 		time.Sleep(2 * time.Second)
 	}
@@ -125,34 +98,40 @@ func (i *Indexer) resolved() int {
 	return out
 }
 
-// ResolveDomains takes []*Domains and resolves the URI records
-func (i *Indexer) ResolveDomains() {
+// resolveDomains takes []*Domains and resolves the URI records
+func (i *Indexer) resolveDomains() {
 	numCalls := 200
 	sem := make(chan struct{}, numCalls)
 	for _, domain := range i.Names {
 		sem <- struct{}{}
-		domain.ResolveProfile(sem)
+		go domain.ResolveProfile(sem)
 	}
 }
 
-// ProcessNameZonefileMap takes a map[name]zonefile and returns the go representation
-func (i *Indexer) ProcessNameZonefileMap() {
+// processNameZonefileMap takes a map[name]zonefile and returns the go representation
+// TODO: Check this
+func (i *Indexer) processNameZonefileMap() {
 	for name := range i.NameZonefileHash {
-		i.Names = append(i.Names, NewDomain(name, i.NameZonefileHash[name]))
+		i.Lock()
+		zfh := i.NameZonefileHash[name]
+		i.Unlock()
+		if zfh != "" {
+			i.Names = append(i.Names, NewDomain(name, zfh))
+		}
 	}
 }
 
-// FetchAllZonefiles fetches all the zonefiles from the StartBlock to the CurrentBlock
-func (i *Indexer) FetchAllZonefiles() {
-	numBlocks := i.CurrentBlock - StartBlock
+// fetchAllZonefiles fetches all the zonefiles from the startBlock to the CurrentBlock
+func (i *Indexer) fetchAllZonefiles() {
+	numBlocks := i.CurrentBlock - startBlock
 	fetchBlocks := 100
 	iter := (numBlocks/fetchBlocks + 1)
 	for page := 0; page <= iter; page++ {
-		st := StartBlock + (page * fetchBlocks)
+		st := startBlock + (page * fetchBlocks)
 		end := st + 100
-		log.Printf("%v Fetching zonefiles from block %v to block %v", prefix, st, end)
+		log.Printf("%v Fetching zonefiles from block %v to block %v", logPrefix, st, end)
 		i.GetZonefilesByBlock(st, end)
-		i.ProcessedTo.Set(float64(end))
+		i.stats.ProcessedTo.Set(float64(end))
 	}
 }
 
@@ -243,56 +222,41 @@ func (i *Indexer) getAllNames() {
 	}
 	i.CurrentBlock = ns.Lastblock
 	for _, n := range ns.Namespaces {
-		go i.GetAllNamesInNamespace(n)
+		go i.getAllNamesInNamespace(n)
 	}
 }
 
-func (i *Indexer) getNamePageAsync(page int, iter int, ns string) {
+func (i *Indexer) getNamePageAsync(page int, iter int, ns string, sem chan struct{}) {
 	namePage, err := i.Client().GetNamesInNamespace(ns, page*100, 100)
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, name := range namePage.Names {
-		i.enrichChan <- NewDomain(name, "ioapsdjfoaisdjf")
+		i.nameChan <- name
 	}
+	<-sem
 }
 
 func (i *Indexer) handleNameChan() {
 	for n := range i.nameChan {
 		i.Lock()
-		i.Names = append(i.Names, n)
+		i.NameZonefileHash[n] = ""
 		i.Unlock()
 	}
 }
 
-func (i *Indexer) handleEnrichChan() {
-	for n := range i.enrichChan {
-		go i.enrichName(n)
-	}
-}
-
-func (i *Indexer) enrichName(name *Domain) {
-	// i.Lock()
-	// cb := i.CurrentBlock
-	// i.Unlock()
-	res, err := i.Client().GetNameBlockchainRecord(name.Name)
-	if err != nil {
-		log.Fatal(err)
-	}
-	name.Address = res.Record.Address
-	log.Println(res.JSON())
-	i.nameChan <- name
-}
-
-// GetAllNamesInNamespace gets all the names in a namespace
-func (i *Indexer) GetAllNamesInNamespace(ns string) {
+// getAllNamesInNamespace gets all the names in a namespace
+func (i *Indexer) getAllNamesInNamespace(ns string) {
 	numNames, err := i.Client().GetNumNamesInNamespace(ns)
 	if err != nil {
 		log.Fatal(err)
 	}
 	iter := (numNames.Count/100 + 1)
+	numCalls := 50
+	sem := make(chan struct{}, numCalls)
 	for page := 0; page <= iter; page++ {
-		go i.getNamePageAsync(page, iter, ns)
+		sem <- struct{}{}
+		go i.getNamePageAsync(page, iter, ns, sem)
 	}
 }
 
@@ -302,7 +266,7 @@ func (i *Indexer) registerClient(conf blockstack.ServerConfig) {
 	client := blockstack.NewClient(conf)
 	res, err := client.GetInfo()
 	if err != nil {
-		log.Printf("%s Failed to contact %s:%v, excluding from rotation", prefix, conf.Address, conf.Port)
+		log.Printf("%s Failed to contact %s:%v, excluding from rotation", logPrefix, conf.Address, conf.Port)
 		return
 	}
 	i.clients = append(i.clients, client)

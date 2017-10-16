@@ -39,7 +39,7 @@ commands () {
   cat <<-EOF
 ops commands:
   init-core {number} -> Fast sync core node directories to $(pwd)/core-{number}
-  test-core {port}   -> Call the getinfo RPC method against a blockstack-core node running at localhost:{port}
+  test-core {host} {port}   -> Call the getinfo RPC method against a blockstack-core node running at {host}:{port}
 EOF
 }
 
