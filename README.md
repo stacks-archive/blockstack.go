@@ -1,6 +1,6 @@
 # Blockstack Indexer
 
-The `blockstack-indexer` connects to a `blockstack-core` node and pulls the data out for faster access. It is written in go and utilizes extensive parallelization for speed. It exposes an API as follows:
+The `blockstack-indexer` connects to a `blockstack-core` node and pulls the data out for faster access. It is written in go and utilizes extensive parallelization for speed. It will expose an API as follows:
 
 ```
 /v1/names/:domainName
@@ -13,4 +13,10 @@ The `blockstack-indexer` connects to a `blockstack-core` node and pulls the data
 /v1/namespaces/:id
 /v1/namespaces
 /v1/blockchains/bitcoin/name_count
+```
+
+Test core node connectivity with the following curl call:
+
+```
+curl -L -XPOST -H "Content-Type: application/xml" {addresss}:{port}/RPC2 -d '<?xml version="1.0"?><methodCall><methodName>getinfo</methodName><params></params></methodCall>'
 ```

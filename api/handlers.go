@@ -1,32 +1,39 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/jackzampolin/blockstack-indexer/blockstack"
+	"github.com/jackzampolin/go-blockstack/blockstack"
+	"github.com/jackzampolin/go-blockstack/indexer"
 )
 
+// Handlers is a collection of Hanlder
 type Handlers struct {
-	Client *blockstack.Client
+	Client  *blockstack.Client
+	Indexer *indexer.Indexer
 }
 
-func NewHandlers(conf blockstack.ServerConfig) *Handlers {
+// NewHandlers creates the Handlers struct where all the handlers are defined.
+// It is defined this way so database connections and other clients
+// can be shared between handler methods easily
+func NewHandlers(conf blockstack.ServerConfig, indexer *indexer.Indexer) *Handlers {
 	return &Handlers{
-		Client: blockstack.NewClient(conf),
+		Client:  blockstack.NewClient(conf),
+		Indexer: indexer,
 	}
 }
 
 // V1GetNameHandler handles the /v1/names/{name} route
 // NOTE: This needs to be derived from a DB call
 func (h *Handlers) V1GetNameHandler(w http.ResponseWriter, r *http.Request) {
-	// vars := mux.Vars(r)
-	var out V1GetNameResponse
-	// Do stuff...
-	w.Write([]byte(out.JSON()))
+	vars := mux.Vars(r)
+	log.Println("name", vars["name"])
+	w.Write([]byte("ok\n"))
 }
 
 // V1GetNameHistoryHandler handles response for /v1/names/{name}/history
@@ -223,4 +230,27 @@ func (h *Handlers) V1GetNamespaceBlockchainRecordHandler(w http.ResponseWriter, 
 // V1GetNamespacesHandler handles response for /v1/namespaces route
 func (h *Handlers) V1GetNamespacesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok\n"))
+}
+
+// NumNamesHandler the /resolver/numnames route
+func (h *Handlers) NumNamesHandler(w http.ResponseWriter, r *http.Request) {
+	h.Indexer.Lock()
+	w.Write([]byte(fmt.Sprintf("Resolver Stats:\n  CurrentBlock: %v\n  CurrentNames: %v\n  ExpectedNames: %v\n", h.Indexer.CurrentBlock, len(h.Indexer.Names), h.Indexer.ExpectedNames)))
+	h.Indexer.Unlock()
+}
+
+// NumNamesHandler the /resolver/names route
+func (h *Handlers) GetNamesHandler(w http.ResponseWriter, r *http.Request) {
+	var out []string
+	h.Indexer.Lock()
+	names := h.Indexer.Names
+	h.Indexer.Unlock()
+	for _, name := range names {
+		out = append(out, name.Name)
+	}
+	byt, err := json.Marshal(out)
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.Write(byt)
 }

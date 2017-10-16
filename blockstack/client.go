@@ -36,7 +36,6 @@ type ServerConfig struct {
 }
 
 // ServerConfigs is a type to hold multiple ServerConfig
-// TODO: Make NewClient take an array of server configs and rotate calls
 type ServerConfigs []ServerConfig
 
 // RPCError wraps errors from the RPC calls

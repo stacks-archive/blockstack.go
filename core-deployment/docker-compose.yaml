@@ -1,0 +1,38 @@
+version: '2'
+services:
+  blockstack-core-1:
+    image: 'quay.io/blockstack/blockstack-core:v0.17.0.7'
+    command: 'blockstack-core start --foreground'
+    volumes:
+      - './core-1/server/:/root/.blockstack-server/'
+      - './core-1/api/:/root/.blockstack/'
+    ports:
+      - 6264:6264
+    restart: always
+  blockstack-core-2:
+    image: 'quay.io/blockstack/blockstack-core:v0.17.0.7'
+    command: 'blockstack-core start --foreground'
+    volumes:
+      - './core-2/server/:/root/.blockstack-server/'
+      - './core-2/api/:/root/.blockstack/'
+    ports:
+      - 6265:6264
+    restart: always
+  blockstack-core-3:
+    image: 'quay.io/blockstack/blockstack-core:v0.17.0.7'
+    command: 'blockstack-core start --foreground'
+    volumes:
+      - './core-3/server/:/root/.blockstack-server/'
+      - './core-3/api/:/root/.blockstack/'
+    ports:
+      - 6266:6264
+    restart: always
+  blockstack-core-4:
+    image: 'quay.io/blockstack/blockstack-core:v0.17.0.7'
+    command: 'blockstack-core start --foreground'
+    volumes:
+      - './core-4/server/:/root/.blockstack-server/'
+      - './core-4/api/:/root/.blockstack/'
+    ports:
+      - 6267:6264
+    restart: always

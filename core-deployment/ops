@@ -1,0 +1,56 @@
+#!/bin/bash
+
+image=quay.io/blockstack/blockstack-core
+tag=v0.17.0.7
+
+init-core () {
+  if [ -z "$1" ]; then
+    echo "Need to number for core node..."
+    exit 1
+  fi
+
+  local coreData=core-$1
+  echo "Initializing Blockstack Core node. This task runs in the background and may take up to 20 minutes..."
+  mkdir -p $coreData/server/
+  cp $(pwd)/blockstack-server.ini $coreData/server/blockstack-server.ini
+  docker run -d --rm \
+    -v $(pwd)/$coreData/server/:/root/.blockstack-server/ \
+    -v $(pwd)/$coreData/api/:/root/.blockstack \
+    --name blockstack-core-init-$1 \
+    $image:$tag \
+    blockstack-core --debug fast_sync http://fast-sync.blockstack.org/snapshot.bsk > /dev/null
+}
+
+test-core () {
+  if [ -z "$1" ]; then
+    echo "Need to input host to test against..."
+    exit 1
+  fi
+  if [ -z "$2" ]; then
+    echo "Need to input port to test against..."
+    exit 1
+  else
+    local rpccall='<?xml version="1.0"?><methodCall><methodName>getinfo</methodName><params></params></methodCall>'
+    curl -L -XPOST -H "Content-Type: application/xml" $1:$2/RPC2 -d "$rpccall"
+  fi
+}
+
+commands () {
+  cat <<-EOF
+ops commands:
+  init-core {number} -> Fast sync core node directories to $(pwd)/core-{number}
+  test-core {port}   -> Call the getinfo RPC method against a blockstack-core node running at localhost:{port}
+EOF
+}
+
+case $1 in
+init-core)
+  init-core $2
+  ;;
+test-core)
+  test-core $2
+  ;;
+*)
+  commands
+  ;;
+esac

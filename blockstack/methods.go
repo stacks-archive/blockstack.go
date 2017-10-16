@@ -267,29 +267,29 @@ func (bsk *Client) GetNamespaceCost(namespace string) (GetNamespaceCostResult, e
 }
 
 // GetNumNames calls the get_num_names RPC method for blockstack server
-func (bsk *Client) GetNumNames() (GetNumNamesResult, error) {
+func (bsk *Client) GetNumNames() (CountResult, error) {
 	rpcCall := "get_num_names"
 	var callResult string
 
 	err := bsk.node.Call(rpcCall, []interface{}{}, &callResult)
 	if err != nil {
-		return GetNumNamesResult{}, fmt.Errorf("RPC call %v failed: %v", rpcCall, err)
+		return CountResult{}, fmt.Errorf("RPC call %v failed: %v", rpcCall, err)
 	}
 
 	var rpcError RPCError
 	err = json.Unmarshal([]byte(callResult), &rpcError)
 	if err != nil {
-		return GetNumNamesResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+		return CountResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
 	}
 
 	if rpcError.Error() != "" {
-		return GetNumNamesResult{}, fmt.Errorf("RPC Error on call %v: %v", rpcCall, rpcError)
+		return CountResult{}, fmt.Errorf("RPC Error on call %v: %v", rpcCall, rpcError)
 	}
 
-	var out GetNumNamesResult
+	var out CountResult
 	err = json.Unmarshal([]byte(callResult), &out)
 	if err != nil {
-		return GetNumNamesResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+		return CountResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
 	}
 
 	return out, nil
@@ -383,29 +383,29 @@ func (bsk *Client) GetNamesInNamespace(ns string, offset int, count int) (GetNam
 }
 
 // GetNumNamesInNamespace calls the get_num_names_in_namespace RPC method for blockstack server
-func (bsk *Client) GetNumNamesInNamespace(namespace string) (GetNumNamesInNamespaceResult, error) {
+func (bsk *Client) GetNumNamesInNamespace(namespace string) (CountResult, error) {
 	rpcCall := "get_num_names_in_namespace"
 	var callResult string
 
 	err := bsk.node.Call(rpcCall, []interface{}{namespace}, &callResult)
 	if err != nil {
-		return GetNumNamesInNamespaceResult{}, fmt.Errorf("RPC call %v failed: %v", rpcCall, err)
+		return CountResult{}, fmt.Errorf("RPC call %v failed: %v", rpcCall, err)
 	}
 
 	var rpcError RPCError
 	err = json.Unmarshal([]byte(callResult), &rpcError)
 	if err != nil {
-		return GetNumNamesInNamespaceResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+		return CountResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
 	}
 
 	if rpcError.Error() != "" {
-		return GetNumNamesInNamespaceResult{}, fmt.Errorf("RPC Error on call %v: %v", rpcCall, rpcError)
+		return CountResult{}, fmt.Errorf("RPC Error on call %v: %v", rpcCall, rpcError)
 	}
 
-	var out GetNumNamesInNamespaceResult
+	var out CountResult
 	err = json.Unmarshal([]byte(callResult), &out)
 	if err != nil {
-		return GetNumNamesInNamespaceResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+		return CountResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
 	}
 
 	return out, nil
@@ -579,6 +579,174 @@ func (bsk *Client) GetNamespaceBlockchainRecord(namespace string) (GetNamespaceB
 	err = json.Unmarshal([]byte(callResult), &out)
 	if err != nil {
 		return GetNamespaceBlockchainRecordResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	return out, nil
+}
+
+// GetZonefiles calls the get_zonefiles RPC method for blockstack server
+func (bsk *Client) GetZonefiles(zonefiles []string) (GetZonefilesResult, error) {
+	rpcCall := "get_zonefiles"
+	var callResult string
+
+	err := bsk.node.Call(rpcCall, []interface{}{zonefiles}, &callResult)
+	if err != nil {
+		return GetZonefilesResult{}, fmt.Errorf("RPC call %v failed: %v", rpcCall, err)
+	}
+	var rpcError RPCError
+	err = json.Unmarshal([]byte(callResult), &rpcError)
+	if err != nil {
+		return GetZonefilesResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	if rpcError.Error() != "" {
+		return GetZonefilesResult{}, fmt.Errorf("RPC Error on call %v: %v", rpcCall, rpcError)
+	}
+
+	var out GetZonefilesResult
+	err = json.Unmarshal([]byte(callResult), &out)
+	if err != nil {
+		return GetZonefilesResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	return out, nil
+}
+
+// GetOpHistoryRows calls the get_op_history_rows RPC method for blockstack server
+func (bsk *Client) GetOpHistoryRows(historyID string, offset int, count int) (GetOpHistoryRowsResult, error) {
+	rpcCall := "get_op_history_rows"
+	var callResult string
+
+	err := bsk.node.Call(rpcCall, []interface{}{historyID, offset, count}, &callResult)
+	if err != nil {
+		return GetOpHistoryRowsResult{}, fmt.Errorf("RPC call %v failed: %v", rpcCall, err)
+	}
+	var rpcError RPCError
+	err = json.Unmarshal([]byte(callResult), &rpcError)
+	if err != nil {
+		return GetOpHistoryRowsResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	if rpcError.Error() != "" {
+		return GetOpHistoryRowsResult{}, fmt.Errorf("RPC Error on call %v: %v", rpcCall, rpcError)
+	}
+
+	var out GetOpHistoryRowsResult
+	err = json.Unmarshal([]byte(callResult), &out)
+	if err != nil {
+		return GetOpHistoryRowsResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	return out, nil
+}
+
+// GetNameOpsAffectedAt calls the get_nameops_affected_at RPC method for blockstack server
+func (bsk *Client) GetNameOpsAffectedAt(blockID, offset, count int) (GetNameOpsAffectedAtResult, error) {
+	rpcCall := "get_nameops_affected_at"
+	var callResult string
+
+	err := bsk.node.Call(rpcCall, []interface{}{blockID, offset, count}, &callResult)
+	if err != nil {
+		return GetNameOpsAffectedAtResult{}, fmt.Errorf("RPC call %v failed: %v", rpcCall, err)
+	}
+	var rpcError RPCError
+	err = json.Unmarshal([]byte(callResult), &rpcError)
+	if err != nil {
+		return GetNameOpsAffectedAtResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	if rpcError.Error() != "" {
+		return GetNameOpsAffectedAtResult{}, fmt.Errorf("RPC Error on call %v: %v", rpcCall, rpcError)
+	}
+
+	var out GetNameOpsAffectedAtResult
+	err = json.Unmarshal([]byte(callResult), &out)
+	if err != nil {
+		return GetNameOpsAffectedAtResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	return out, nil
+}
+
+// GetConsensusHashes calls the get_consensus_hashes RPC method for blockstack server
+func (bsk *Client) GetConsensusHashes(blocks []int) (GetConsensusHashesResult, error) {
+	rpcCall := "get_consensus_hashes"
+	var callResult string
+
+	err := bsk.node.Call(rpcCall, []interface{}{blocks}, &callResult)
+	if err != nil {
+		return GetConsensusHashesResult{}, fmt.Errorf("RPC call %v failed: %v", rpcCall, err)
+	}
+	var rpcError RPCError
+	err = json.Unmarshal([]byte(callResult), &rpcError)
+	if err != nil {
+		return GetConsensusHashesResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	if rpcError.Error() != "" {
+		return GetConsensusHashesResult{}, fmt.Errorf("RPC Error on call %v: %v", rpcCall, rpcError)
+	}
+
+	var out GetConsensusHashesResult
+	err = json.Unmarshal([]byte(callResult), &out)
+	if err != nil {
+		return GetConsensusHashesResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	return out, nil
+}
+
+// GetNumOpHistoryRows calls the get_num_op_history_rows RPC method for blockstack server
+func (bsk *Client) GetNumOpHistoryRows(historyID string) (CountResult, error) {
+	rpcCall := "get_num_op_history_rows"
+	var callResult string
+
+	err := bsk.node.Call(rpcCall, []interface{}{historyID}, &callResult)
+	if err != nil {
+		return CountResult{}, fmt.Errorf("RPC call %v failed: %v", rpcCall, err)
+	}
+	var rpcError RPCError
+	err = json.Unmarshal([]byte(callResult), &rpcError)
+	if err != nil {
+		return CountResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	if rpcError.Error() != "" {
+		return CountResult{}, fmt.Errorf("RPC Error on call %v: %v", rpcCall, rpcError)
+	}
+
+	var out CountResult
+	err = json.Unmarshal([]byte(callResult), &out)
+	if err != nil {
+		return CountResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	return out, nil
+}
+
+// GetNumNameOpsAffectedAt calls the get_num_nameops_affected_at RPC method for blockstack server
+func (bsk *Client) GetNumNameOpsAffectedAt(blockID int) (CountResult, error) {
+	rpcCall := "get_num_nameops_affected_at"
+	var callResult string
+
+	err := bsk.node.Call(rpcCall, []interface{}{blockID}, &callResult)
+	if err != nil {
+		return CountResult{}, fmt.Errorf("RPC call %v failed: %v", rpcCall, err)
+	}
+	var rpcError RPCError
+	err = json.Unmarshal([]byte(callResult), &rpcError)
+	if err != nil {
+		return CountResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
+	}
+
+	if rpcError.Error() != "" {
+		return CountResult{}, fmt.Errorf("RPC Error on call %v: %v", rpcCall, rpcError)
+	}
+
+	var out CountResult
+	err = json.Unmarshal([]byte(callResult), &out)
+	if err != nil {
+		return CountResult{}, fmt.Errorf("Failed to Unmarshall %v RPC result: %v", rpcCall, err)
 	}
 
 	return out, nil

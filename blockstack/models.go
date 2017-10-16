@@ -1,6 +1,7 @@
 package blockstack
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"log"
 )
@@ -226,23 +227,6 @@ func (r GetNamespaceCostResult) JSON() string {
 	return string(byt)
 }
 
-// GetNumNamesResult is the go represenation of the get_num_names method
-type GetNumNamesResult struct {
-	Status    bool `json:"status"`
-	Count     int  `json:"count"`
-	Lastblock int  `json:"lastblock"`
-	Indexing  bool `json:"indexing"`
-}
-
-// JSON returns the JSON representation of GetNumNamesResult
-func (r GetNumNamesResult) JSON() string {
-	byt, err := json.Marshal(r)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return string(byt)
-}
-
 // GetAllNamesResult is the go represenation of the get_all_names method
 type GetAllNamesResult struct {
 	Status    bool     `json:"status"`
@@ -270,23 +254,6 @@ type GetAllNamespacesResult struct {
 
 // JSON returns the JSON representation of GetAllNamespacesResult
 func (r GetAllNamespacesResult) JSON() string {
-	byt, err := json.Marshal(r)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return string(byt)
-}
-
-// GetNumNamesInNamespaceResult is the go represenation fo the get_num_names_in_namespace method
-type GetNumNamesInNamespaceResult struct {
-	Status    bool `json:"status"`
-	Count     int  `json:"count"`
-	Lastblock int  `json:"lastblock"`
-	Indexing  bool `json:"indexing"`
-}
-
-// JSON returns the JSON representation of GetNumNamesInNamespaceResult
-func (r GetNumNamesInNamespaceResult) JSON() string {
 	byt, err := json.Marshal(r)
 	if err != nil {
 		log.Fatal(err)
@@ -345,17 +312,43 @@ func (r GetBlockFromConsensusResult) JSON() string {
 	return string(byt)
 }
 
+// ZonefileHashResult is a go represenation of a zonefile_hash_result
+type ZonefileHashResult struct {
+	Txid         string `json:"txid"`
+	Name         string `json:"name"`
+	ZonefileHash string `json:"zonefile_hash"`
+	BlockHeight  int    `json:"block_height"`
+}
+
+// ZonefileHashResults is a collection of ZonefileHashResult
+type ZonefileHashResults []ZonefileHashResult
+
+// Zonefiles returns zonefiles from a ZonefileHashResults
+func (zfhr ZonefileHashResults) Zonefiles() []string {
+	var out []string
+	for _, zfh := range zfhr {
+		out = append(out, zfh.ZonefileHash)
+	}
+	return out
+}
+
+// LatestZonefileHash returns the latest zonefile from a batch for a given zonefileHash
+func (zfhr ZonefileHashResults) LatestZonefileHash(zonefileHash string) ZonefileHashResult {
+	var out ZonefileHashResult
+	for _, zfh := range zfhr {
+		if zfh.ZonefileHash == zonefileHash && zfh.BlockHeight > out.BlockHeight {
+			out = zfh
+		}
+	}
+	return out
+}
+
 // GetZonefilesByBlockResult is the go represenation of the get_zonefiles_by_block rpc method
 type GetZonefilesByBlockResult struct {
-	Status       bool `json:"status"`
-	Lastblock    int  `json:"lastblock"`
-	Indexing     bool `json:"indexing"`
-	ZonefileInfo []struct {
-		Txid         string `json:"txid"`
-		Name         string `json:"name"`
-		ZonefileHash string `json:"zonefile_hash"`
-		BlockHeight  int    `json:"block_height"`
-	} `json:"zonefile_info"`
+	Status       bool                 `json:"status"`
+	Lastblock    int                  `json:"lastblock"`
+	Indexing     bool                 `json:"indexing"`
+	ZonefileInfo []ZonefileHashResult `json:"zonefile_info"`
 }
 
 // JSON returns the JSON representation of GetZonefilesByBlockResult
@@ -365,6 +358,15 @@ func (r GetZonefilesByBlockResult) JSON() string {
 		log.Fatal(err)
 	}
 	return string(byt)
+}
+
+// Zonefiles is an affordance to return the zonefile hashes in []string
+func (r GetZonefilesByBlockResult) Zonefiles() []string {
+	var out []string
+	for _, zfh := range r.ZonefileInfo {
+		out = append(out, zfh.ZonefileHash)
+	}
+	return out
 }
 
 // GetAtlasPeersResult is the go represenation of the get_atlas_peers rpc method
@@ -488,8 +490,115 @@ type GetNamespaceBlockchainRecordResult struct {
 	Indexing  bool `json:"indexing"`
 }
 
-// JSON returns the JSON representation of GetNameOpsHashAtResult
+// JSON returns the JSON representation of GetNamespaceBlockchainRecordResult
 func (r GetNamespaceBlockchainRecordResult) JSON() string {
+	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// GetZonefilesResult is the go represenation of the get_zonfiles rpc method
+type GetZonefilesResult struct {
+	Status    bool              `json:"status"`
+	Lastblock int               `json:"lastblock"`
+	Indexing  bool              `json:"indexing"`
+	Zonefiles map[string]string `json:"zonefiles"`
+}
+
+// Decode is an affordance that returns the results in map[string]string
+func (r GetZonefilesResult) Decode() map[string]string {
+	out := make(map[string]string)
+	for k := range r.Zonefiles {
+		dec, err := base64.StdEncoding.DecodeString(r.Zonefiles[k])
+		if err != nil {
+			log.Fatal(err)
+		}
+		out[k] = string(dec)
+	}
+	return out
+}
+
+// JSON returns the JSON representation of GetZonefilesResult
+func (r GetZonefilesResult) JSON() string {
+	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// GetOpHistoryRowsResult is the go represenation of the get_zonfiles rpc method
+type GetOpHistoryRowsResult struct {
+	Status      bool `json:"status"`
+	HistoryRows []struct {
+		BlockID     int    `json:"block_id"`
+		Op          string `json:"op"`
+		HistoryID   string `json:"history_id"`
+		HistoryData string `json:"history_data"`
+		Vtxindex    int    `json:"vtxindex"`
+		Txid        string `json:"txid"`
+	} `json:"history_rows"`
+	Lastblock int  `json:"lastblock"`
+	Indexing  bool `json:"indexing"`
+}
+
+// JSON returns the JSON representation of GetOpHistoryRowsResult
+func (r GetOpHistoryRowsResult) JSON() string {
+	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// CountResult is the go represenation of the
+// get_num_names, get_num_names_in_namespace, get_num_nameops_affected_at, get_num_op_history_rows
+// rpc methods
+type CountResult struct {
+	Status    bool `json:"status"`
+	Count     int  `json:"count"`
+	Lastblock int  `json:"lastblock"`
+	Indexing  bool `json:"indexing"`
+}
+
+// JSON returns the JSON representation of CountResult
+func (r CountResult) JSON() string {
+	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// GetNameOpsAffectedAtResult is the go represenation of the get_nameops_affected_at rpc method
+type GetNameOpsAffectedAtResult struct {
+	Status    bool          `json:"status"`
+	Nameops   []Transaction `json:"nameops"`
+	Lastblock int           `json:"lastblock"`
+	Indexing  bool          `json:"indexing"`
+}
+
+// JSON returns the JSON representation of GetNameOpsAffectedAtResult
+func (r GetNameOpsAffectedAtResult) JSON() string {
+	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// GetConsensusHashesResult is the go representation of the get_consensus_hashes rpc method
+type GetConsensusHashesResult struct {
+	Status          bool           `json:"status"`
+	ConsensusHashes map[int]string `json:"consensus_hashes"`
+	Lastblock       int            `json:"lastblock"`
+	Indexing        bool           `json:"indexing"`
+}
+
+// JSON returns the JSON representation of GetConsensusHashesResult
+func (r GetConsensusHashesResult) JSON() string {
 	byt, err := json.Marshal(r)
 	if err != nil {
 		log.Fatal(err)

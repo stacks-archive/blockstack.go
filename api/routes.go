@@ -1,10 +1,12 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/jackzampolin/blockstack-indexer/blockstack"
+	"github.com/jackzampolin/go-blockstack/blockstack"
+	"github.com/jackzampolin/go-blockstack/indexer"
 )
 
 // Route representes an indivdual route in the Blockstack API sever
@@ -18,69 +20,92 @@ type Route struct {
 // Routes is a collection of Route
 type Routes []Route
 
+// Routes returns the routes in an array
+func (r Routes) Routes() []string {
+	var out []string
+	for _, rt := range r {
+		out = append(out, fmt.Sprintf("%s %s", rt.Method, rt.Pattern))
+	}
+	return out
+}
+
 // NewRouter returns a router instance to be served
-func NewRouter(conf blockstack.ServerConfig) *mux.Router {
-	h := NewHandlers(conf)
+func NewRouter(conf blockstack.ServerConfig, res *indexer.Indexer) *mux.Router {
+	h := NewHandlers(conf, res)
 	routes := Routes{
+		// NOTE: Testing Route, Remove
 		Route{
-			"V1GetName",
-			"GET",
-			"/v1/names/{name}",
-			h.V1GetNameHandler,
+			Name:        "V1GetName",
+			Method:      "GET",
+			Pattern:     "/resolver/numnames",
+			HandlerFunc: h.NumNamesHandler,
+		},
+		// NOTE: Testing Route, Remove
+		Route{
+			Name:        "V1GetName",
+			Method:      "GET",
+			Pattern:     "/resolver/names",
+			HandlerFunc: h.GetNamesHandler,
 		},
 		Route{
-			"V1GetNameHistory",
-			"GET",
-			"/v1/names/{name}/history",
-			h.V1GetNameHistoryHandler,
+			Name:        "V1GetName",
+			Method:      "GET",
+			Pattern:     "/v1/names/{name}",
+			HandlerFunc: h.V1GetNameHandler,
 		},
 		Route{
-			"V1GetNamesInNamespace",
-			"GET",
-			"/v1/namespaces/{namespace}/names",
-			h.V1GetNamesInNamespaceHandler,
+			Name:        "V1GetNameHistory",
+			Method:      "GET",
+			Pattern:     "/v1/names/{name}/history",
+			HandlerFunc: h.V1GetNameHistoryHandler,
 		},
 		Route{
-			"V2GetUserProfile",
-			"GET",
-			"/v2/users/{name}",
-			h.V2GetUserProfileHandler,
+			Name:        "V1GetNamesInNamespace",
+			Method:      "GET",
+			Pattern:     "/v1/namespaces/{namespace}/names",
+			HandlerFunc: h.V1GetNamesInNamespaceHandler,
 		},
 		Route{
-			"V1GetNameOpsAtHeight",
-			"GET",
-			"/v1/blockchains/bitcoin/operations/{blockHeight}",
-			h.V1GetNameOpsAtHeightHandler,
+			Name:        "V2GetUserProfile",
+			Method:      "GET",
+			Pattern:     "/v2/users/{name}",
+			HandlerFunc: h.V2GetUserProfileHandler,
 		},
 		Route{
-			"V1GetNamesOwnedByAddress",
-			"GET",
-			"/v1/addresses/bitcoin/{address}",
-			h.V1GetNamesOwnedByAddressHandler,
+			Name:        "V1GetNameOpsAtHeight",
+			Method:      "GET",
+			Pattern:     "/v1/blockchains/bitcoin/operations/{blockHeight}",
+			HandlerFunc: h.V1GetNameOpsAtHeightHandler,
 		},
 		Route{
-			"V1GetZonefile",
-			"GET",
-			"/v1/names/{name}/zonefile",
-			h.V1GetZonefileHandler,
+			Name:        "V1GetNamesOwnedByAddress",
+			Method:      "GET",
+			Pattern:     "/v1/addresses/bitcoin/{address}",
+			HandlerFunc: h.V1GetNamesOwnedByAddressHandler,
 		},
 		Route{
-			"V1GetNamespaceBlockchainRecord",
-			"GET",
-			"/v1/namespaces/{namespace}",
-			h.V1GetNamespaceBlockchainRecordHandler,
+			Name:        "V1GetZonefile",
+			Method:      "GET",
+			Pattern:     "/v1/names/{name}/zonefile",
+			HandlerFunc: h.V1GetZonefileHandler,
 		},
 		Route{
-			"V1GetNamespaces",
-			"GET",
-			"/v1/namespace",
-			h.V1GetNamespacesHandler,
+			Name:        "V1GetNamespaceBlockchainRecord",
+			Method:      "GET",
+			Pattern:     "/v1/namespaces/{namespace}",
+			HandlerFunc: h.V1GetNamespaceBlockchainRecordHandler,
 		},
 		Route{
-			"V1GetNamesInNamespace",
-			"GET",
-			"/v1/blockchains/{blockchain}/name_count",
-			h.V1GetNamesInNamespaceHandler,
+			Name:        "V1GetNamespaces",
+			Method:      "GET",
+			Pattern:     "/v1/namespace",
+			HandlerFunc: h.V1GetNamespacesHandler,
+		},
+		Route{
+			Name:        "V1GetNamesInNamespace",
+			Method:      "GET",
+			Pattern:     "/v1/blockchains/{blockchain}/name_count",
+			HandlerFunc: h.V1GetNamesInNamespaceHandler,
 		},
 	}
 
