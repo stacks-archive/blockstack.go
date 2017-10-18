@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/jackzampolin/go-blockstack/blockstack"
-	"github.com/jackzampolin/go-blockstack/indexer"
+	"github.com/blockstack/go-blockstack/blockstack"
+	"github.com/blockstack/go-blockstack/indexer"
 )
 
 const (

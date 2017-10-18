@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/jackzampolin/go-blockstack/blockstack"
-	"github.com/jackzampolin/go-blockstack/indexer"
+	"github.com/blockstack/go-blockstack/blockstack"
+	"github.com/blockstack/go-blockstack/indexer"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 

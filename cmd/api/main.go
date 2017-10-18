@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/jackzampolin/go-blockstack/api"
-	"github.com/jackzampolin/go-blockstack/blockstack"
+	"github.com/blockstack/go-blockstack/api"
+	"github.com/blockstack/go-blockstack/blockstack"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	// "log"
 
-	"github.com/jackzampolin/go-blockstack/blockstack"
+	"github.com/blockstack/go-blockstack/blockstack"
 )
 
 func main() {

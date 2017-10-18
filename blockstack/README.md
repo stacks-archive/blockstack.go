@@ -1,6 +1,6 @@
 # Blockstack Core RPC Client
 
-This is an implementation of the [`blockstack-core`](https://github.com/blockstack/blockstack-core) RPC protocol in Golang. To use it in your project import `github.com/jackzampolin/go-blockstack/blockstack`
+This is an implementation of the [`blockstack-core`](https://github.com/blockstack/blockstack-core) RPC protocol in Golang. To use it in your project import `github.com/blockstack/go-blockstack/blockstack`
 
 ### RPC Implementation status
 

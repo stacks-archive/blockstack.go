@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/jackzampolin/go-blockstack/blockstack"
-	// "github.com/jackzampolin/go-blockstack/indexer"
+	"github.com/blockstack/go-blockstack/blockstack"
+	// "github.com/blockstack/go-blockstack/indexer"
 )
 
 // Route representes an indivdual route in the Blockstack API sever

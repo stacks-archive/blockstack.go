@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackzampolin/go-blockstack/blockstack"
+	"github.com/blockstack/go-blockstack/blockstack"
 )
 
 // startBlock is the first block on the main bitcoin network
