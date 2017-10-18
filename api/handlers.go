@@ -6,43 +6,133 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/jackzampolin/go-blockstack/blockstack"
 	"github.com/jackzampolin/go-blockstack/indexer"
 )
 
+const (
+	logPrefix = "[api]"
+)
+
 // Handlers is a collection of Hanlder
 type Handlers struct {
 	Client  *blockstack.Client
 	Indexer *indexer.Indexer
+
+	lastBlock int
 }
 
 // NewHandlers creates the Handlers struct where all the handlers are defined.
 // It is defined this way so database connections and other clients
 // can be shared between handler methods easily
-func NewHandlers(conf blockstack.ServerConfig, indexer *indexer.Indexer) *Handlers {
-	return &Handlers{
-		Client:  blockstack.NewClient(conf),
-		Indexer: indexer,
+func NewHandlers(conf blockstack.ServerConfig) *Handlers {
+	h := &Handlers{
+		Client: blockstack.NewClient(conf),
 	}
+	res, err := h.Client.GetInfo()
+	if err != nil {
+		log.Fatalf("Failed to contact blockstack-core node: %v", err)
+	}
+	h.lastBlock = res.LastBlockSeen
+	return h
+}
+
+func jsonKV(k, v string) []byte {
+	ret, _ := json.Marshal(map[string]string{k: v})
+	return ret
 }
 
 // V1GetNameHandler handles the /v1/names/{name} route
-// NOTE: This needs to be derived from a DB call
 func (h *Handlers) V1GetNameHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	log.Println("name", vars["name"])
-	w.Write([]byte("ok\n"))
+	name := mux.Vars(r)["name"]
+	spl := strings.Split(name, ".")
+	if len(spl) != 3 && len(spl) != 2 {
+		w.Write(jsonKV("error", "invalid name"))
+		return
+	} else if spl[len(spl)-1] != "id" {
+		w.Write(jsonKV("error", "invalid namespace"))
+		return
+	}
+	nameDetails, err := h.Client.GetNameBlockchainRecord(name)
+	if err != nil {
+		er := strings.Split(err.Error(), ": ")[1]
+		if er == "invalid name" {
+			w.Write(jsonKV("error", er))
+			return
+		}
+	}
+
+	// if there are no name details then the name is available
+	if !nameDetails.Status {
+		w.Write(jsonKV("status", "available"))
+		return
+	}
+	// divine the status of the name
+	lastTx := nameDetails.LastTx()
+	var status string
+	if lastTx.Opcode == "NAME_PREORDER" {
+		status = "pending"
+	} else if nameDetails.Record.ExpireBlock > nameDetails.Lastblock {
+		status = "expired"
+	} else {
+		status = "registered"
+	}
+
+	// If it is registered and there is a zonefile hash look that up
+	if nameDetails.Status && nameDetails.Record.ValueHash != "" {
+		zonefile, err := h.Client.GetZonefiles([]string{nameDetails.Record.ValueHash})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		out := V1GetNameResponse{
+			Address:      nameDetails.Record.Address,
+			Blockchain:   "bitcoin",
+			ExpireBlock:  nameDetails.Record.ExpireBlock,
+			LastTxid:     nameDetails.Record.Txid,
+			Status:       status,
+			ZonefileHash: nameDetails.Record.ValueHash,
+			Zonefile:     zonefile.Decode()[nameDetails.Record.ValueHash],
+		}
+		w.Write(out.JSON())
+		return
+	} else if nameDetails.Status {
+		out := V1GetNameNoZResponse{
+			Address:      nameDetails.Record.Address,
+			Blockchain:   "bitcoin",
+			ExpireBlock:  nameDetails.Record.ExpireBlock,
+			LastTxid:     nameDetails.Record.Txid,
+			Status:       status,
+			ZonefileHash: nameDetails.Record.ValueHash,
+			Zonefile:     map[string]string{"error": "No zone file loaded"},
+		}
+		w.Write(out.JSON())
+		return
+	}
+	w.Write(jsonKV("error", "slipped request"))
 }
 
 // V1GetNameHistoryHandler handles response for /v1/names/{name}/history
 func (h *Handlers) V1GetNameHistoryHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	res, err := h.Client.GetNameBlockchainRecord(vars["name"])
+	name := mux.Vars(r)["name"]
+	spl := strings.Split(name, ".")
+	if len(spl) != 3 && len(spl) != 2 {
+		w.Write(jsonKV("error", "invalid name"))
+		return
+	} else if spl[len(spl)-1] != "id" {
+		w.Write(jsonKV("error", "invalid namespace"))
+		return
+	}
+	res, err := h.Client.GetNameBlockchainRecord(name)
 	if err != nil {
-		// TODO: return error to client
-		log.Fatal(err)
+		er := strings.Split(err.Error(), ": ")[1]
+		if er == "invalid name" {
+			w.Write(jsonKV("error", er))
+			return
+		}
 	}
 	out := V1GetNameHistoryResponse{}
 	for k := range res.Record.History {
@@ -81,13 +171,13 @@ func (h *Handlers) V1GetNamesInNamespaceHandler(w http.ResponseWriter, r *http.R
 	page := r.FormValue("page")
 	pg, err := strconv.ParseInt(page, 10, 64)
 	if err != nil {
-		// TODO: return error to client here and mention that its an ill formed page value
-		log.Fatal(err)
+		w.Write(jsonKV("error", "invalid integer for page"))
+		return
 	}
 	res, err := h.Client.GetNamesInNamespace(vars["namespace"], (int(pg) * 100), 100)
 	if err != nil {
-		// TODO: return error to client here and mention that theres a connection error to core node
-		log.Fatal(err)
+		w.Write([]byte("[]"))
+		return
 	}
 	out := V1GetNamesInNamespaceResponse(res.Names)
 	w.Write(out.JSON())
@@ -100,8 +190,29 @@ func (h *Handlers) V2GetUserProfileHandler(w http.ResponseWriter, r *http.Reques
 // V1GetNameOpsAtHeightHandler handles response for /v1/blockchains/{blockchain}/operations/{blockHeight} route
 func (h *Handlers) V1GetNameOpsAtHeightHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	log.Println("blockchain", vars["blockchain"], "blockHeight", vars["blockHeight"])
-	w.Write([]byte("ok\n"))
+	blockHeight := vars["blockHeight"]
+	blockchain := vars["blockchain"]
+	bh, err := strconv.ParseInt(blockHeight, 10, 64)
+	if err != nil {
+		w.Write(jsonKV("error", "invalid integer for blockHeight"))
+		return
+	} else if blockchain != "bitcoin" {
+		w.Write(jsonKV("error", "blockstack runs on the bitcoin blockchain"))
+		return
+	} else if bh < blockstack.StartBlock {
+		w.Write(jsonKV("error", "invalid block height"))
+		return
+	}
+	res, err := h.Client.GetNameOpsAffectedAt(int(bh), 0, 10)
+	if err != nil {
+		w.Write(jsonKV("error", err.Error()))
+		return
+	} else if len(res.Nameops) == 0 {
+		w.Write([]byte("[]"))
+		return
+	}
+	j, _ := json.Marshal(res.Nameops)
+	w.Write(j)
 }
 
 // V1GetNamesOwnedByAddressHandler handles response for /v1/addresses/bitcoin/{address} route
@@ -232,25 +343,25 @@ func (h *Handlers) V1GetNamespacesHandler(w http.ResponseWriter, r *http.Request
 	w.Write([]byte("ok\n"))
 }
 
-// NumNamesHandler the /resolver/numnames route
-func (h *Handlers) NumNamesHandler(w http.ResponseWriter, r *http.Request) {
-	h.Indexer.Lock()
-	w.Write([]byte(fmt.Sprintf("Resolver Stats:\n  CurrentBlock: %v\n  CurrentNames: %v\n  ExpectedNames: %v\n", h.Indexer.CurrentBlock, len(h.Indexer.Names), h.Indexer.ExpectedNames)))
-	h.Indexer.Unlock()
-}
-
-// NumNamesHandler the /resolver/names route
-func (h *Handlers) GetNamesHandler(w http.ResponseWriter, r *http.Request) {
-	var out []string
-	h.Indexer.Lock()
-	names := h.Indexer.Names
-	h.Indexer.Unlock()
-	for _, name := range names {
-		out = append(out, name.Name)
-	}
-	byt, err := json.Marshal(out)
-	if err != nil {
-		log.Fatal(err)
-	}
-	w.Write(byt)
-}
+// // NumNamesHandler the /resolver/numnames route
+// func (h *Handlers) NumNamesHandler(w http.ResponseWriter, r *http.Request) {
+// 	h.Indexer.Lock()
+// 	w.Write([]byte(fmt.Sprintf("Resolver Stats:\n  CurrentBlock: %v\n  CurrentNames: %v\n  ExpectedNames: %v\n", h.Indexer.CurrentBlock, len(h.Indexer.Names), h.Indexer.ExpectedNames)))
+// 	h.Indexer.Unlock()
+// }
+//
+// // NumNamesHandler the /resolver/names route
+// func (h *Handlers) GetNamesHandler(w http.ResponseWriter, r *http.Request) {
+// 	var out []string
+// 	h.Indexer.Lock()
+// 	names := h.Indexer.Names
+// 	h.Indexer.Unlock()
+// 	for _, name := range names {
+// 		out = append(out, name.Name)
+// 	}
+// 	byt, err := json.Marshal(out)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	w.Write(byt)
+// }

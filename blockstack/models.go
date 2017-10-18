@@ -106,6 +106,17 @@ func (r GetNameBlockchainRecordResult) JSON() string {
 	return string(byt)
 }
 
+// LastTx returns the last transcation from the history
+func (r GetNameBlockchainRecordResult) LastTx() Transaction {
+	var tx int
+	for block := range r.Record.History {
+		if block > tx {
+			tx = block
+		}
+	}
+	return r.Record.History[tx][0]
+}
+
 // PingResult is the go represenation of the ping rpc method
 type PingResult struct {
 	Status string `json:"status"`

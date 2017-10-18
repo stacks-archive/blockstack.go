@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	// "time"
 
 	"github.com/jackzampolin/go-blockstack/blockstack"
 	"github.com/jackzampolin/go-blockstack/indexer"

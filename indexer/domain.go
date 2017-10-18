@@ -7,19 +7,34 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/jackzampolin/go-blockstack/blockstack"
 	"github.com/miekg/dns"
 )
 
 // Domain models a Blockstack domain name
 type Domain struct {
 	Name          string         `json:"name"`
-	Address       string         `json:"address"`
+	Address       string         `json:"{add}ress"`
 	Zonefile      *Zonefile      `json:"zonefile"`
 	Profile       *Profile       `json:"profile"`
 	LegacyProfile *LegacyProfile `json:"legacy_profile"`
 
-	resolved bool
+	getNameAtRes blockstack.GetNameAtResult
+	lastResolved time.Time
+}
+
+type Domains []*Domain
+
+func (d Domains) getZonefiles() (out []string) {
+	for _, dom := range d {
+		recs := dom.getNameAtRes.Records
+		if len(recs) > 0 && recs[0].ValueHash != "" {
+			out = append(out, recs[0].ValueHash)
+		}
+	}
+	return out
 }
 
 // JSON returns the JSON representation of Domain
@@ -32,12 +47,11 @@ func (d *Domain) JSON() string {
 }
 
 // NewDomain returns an initialized Domain
-func NewDomain(name string, zonefile string) *Domain {
+func NewDomain(name string) *Domain {
 	out := &Domain{
-		Name:     name,
-		resolved: false,
+		Name:         name,
+		lastResolved: time.Time{},
 	}
-	out.AddZonefile(zonefile)
 	return out
 }
 
@@ -81,7 +95,7 @@ func (d *Domain) ResolveProfile(sem chan struct{}) {
 		res, err := http.Get(target)
 		if err != nil || res.StatusCode == 404 {
 			log.Printf("Error fetching profile for %v: %v\n", d.Name, err)
-			d.resolved = true
+			d.lastResolved = time.Now()
 			return
 		}
 		body, err := ioutil.ReadAll(res.Body)
@@ -103,6 +117,6 @@ func (d *Domain) ResolveProfile(sem chan struct{}) {
 		}
 		res.Body.Close()
 	}
+	d.lastResolved = time.Now()
 	<-sem
-	d.resolved = true
 }

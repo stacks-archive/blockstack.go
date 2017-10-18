@@ -17,8 +17,28 @@ type V1GetNameResponse struct {
 	ZonefileHash string `json:"zonefile_hash"`
 }
 
+// V1GetNameResponse is the response for the /v1/names/:name
+type V1GetNameNoZResponse struct {
+	Address      string            `json:"address"`
+	Blockchain   string            `json:"blockchain"`
+	ExpireBlock  int               `json:"expire_block"`
+	LastTxid     string            `json:"last_txid"`
+	Status       string            `json:"status"`
+	Zonefile     map[string]string `json:"zonefile"`
+	ZonefileHash string            `json:"zonefile_hash"`
+}
+
 // JSON proves a JSON output for ResponseWritert for ResponseWriter
 func (r V1GetNameResponse) JSON() []byte {
+	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return byt
+}
+
+// JSON proves a JSON output for ResponseWritert for ResponseWriter
+func (r V1GetNameNoZResponse) JSON() []byte {
 	byt, err := json.Marshal(r)
 	if err != nil {
 		log.Fatal(err)
@@ -54,6 +74,15 @@ type Transaction struct {
 	Txid                 string  `json:"txid"`
 	ValueHash            string  `json:"value_hash"`
 	Vtxindex             int     `json:"vtxindex"`
+}
+
+// JSON proves a JSON output for ResponseWriter
+func (r Transaction) JSON() []byte {
+	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return byt
 }
 
 // V1GetNameHistoryResponse holds the response for the /v1/names/{name}/history route

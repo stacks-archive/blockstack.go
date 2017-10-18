@@ -6,7 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jackzampolin/go-blockstack/blockstack"
-	"github.com/jackzampolin/go-blockstack/indexer"
+	// "github.com/jackzampolin/go-blockstack/indexer"
 )
 
 // Route representes an indivdual route in the Blockstack API sever
@@ -30,23 +30,23 @@ func (r Routes) Routes() []string {
 }
 
 // NewRouter returns a router instance to be served
-func NewRouter(conf blockstack.ServerConfig, res *indexer.Indexer) *mux.Router {
-	h := NewHandlers(conf, res)
+func NewRouter(conf blockstack.ServerConfig) *mux.Router {
+	h := NewHandlers(conf)
 	routes := Routes{
-		// NOTE: Testing Route, Remove
-		Route{
-			Name:        "V1GetName",
-			Method:      "GET",
-			Pattern:     "/resolver/numnames",
-			HandlerFunc: h.NumNamesHandler,
-		},
-		// NOTE: Testing Route, Remove
-		Route{
-			Name:        "V1GetName",
-			Method:      "GET",
-			Pattern:     "/resolver/names",
-			HandlerFunc: h.GetNamesHandler,
-		},
+		// // NOTE: Testing Route, Remove
+		// Route{
+		// 	Name:        "V1GetName",
+		// 	Method:      "GET",
+		// 	Pattern:     "/resolver/numnames",
+		// 	HandlerFunc: h.NumNamesHandler,
+		// },
+		// // NOTE: Testing Route, Remove
+		// Route{
+		// 	Name:        "V1GetName",
+		// 	Method:      "GET",
+		// 	Pattern:     "/resolver/names",
+		// 	HandlerFunc: h.GetNamesHandler,
+		// },
 		Route{
 			Name:        "V1GetName",
 			Method:      "GET",
@@ -74,7 +74,7 @@ func NewRouter(conf blockstack.ServerConfig, res *indexer.Indexer) *mux.Router {
 		Route{
 			Name:        "V1GetNameOpsAtHeight",
 			Method:      "GET",
-			Pattern:     "/v1/blockchains/bitcoin/operations/{blockHeight}",
+			Pattern:     "/v1/blockchains/{blockchain}/operations/{blockHeight}",
 			HandlerFunc: h.V1GetNameOpsAtHeightHandler,
 		},
 		Route{

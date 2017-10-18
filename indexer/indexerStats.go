@@ -1,50 +1,71 @@
 package indexer
 
 import (
+	// "log"
+	// "time"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
-	mns = "indexer"
+	promNameSpace     = "indexer"
+	reportingInterval = 2
 )
 
 type indexerStats struct {
-	ProcessedTo  prometheus.Gauge
-	NumZonefiles prometheus.Gauge
-	NumDomains   prometheus.Gauge
-	NumResolved  prometheus.Gauge
+	callsMade          prometheus.Counter
+	namePagesFetched   prometheus.Counter
+	nameDetailsFetched prometheus.Counter
+	zonefilesFetched   prometheus.Counter
+	namesResolved      prometheus.Counter
+	namesOnNetwork     prometheus.Gauge
+	timeSinceStart     prometheus.Gauge
 }
 
 func newIndexerStats() *indexerStats {
 	s := &indexerStats{
-		ProcessedTo: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: mns,
-			Subsystem: "blocks",
-			Name:      "processed",
-			Help:      "The block number that zonefiles have been fetched to",
+		callsMade: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: promNameSpace,
+			Subsystem: "core_calls",
+			Name:      "num_made",
+			Help:      "the number of core RPC calls made",
 		}),
-		NumZonefiles: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: mns,
+		namePagesFetched: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: promNameSpace,
+			Subsystem: "name",
+			Name:      "pages_fetched",
+			Help:      "the number of pages of 100 names fetched",
+		}),
+		nameDetailsFetched: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: promNameSpace,
+			Subsystem: "name",
+			Name:      "details_fetched",
+			Help:      "the number names where details have been fetched",
+		}),
+		zonefilesFetched: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: promNameSpace,
 			Subsystem: "zonefiles",
-			Name:      "number",
-			Help:      "Number of zonefiles in inventory",
+			Name:      "num_fetched",
+			Help:      "the number zonefiles for given names that have been fetched",
 		}),
-		NumDomains: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: mns,
-			Subsystem: "domains",
-			Name:      "number",
-			Help:      "Number of domains initialized",
-		}),
-		NumResolved: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: mns,
-			Subsystem: "domains",
+		namesResolved: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: promNameSpace,
+			Subsystem: "name",
 			Name:      "resolved",
-			Help:      "Number of domains resolved",
+			Help:      "the number names that have been resolved",
+		}),
+		namesOnNetwork: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: promNameSpace,
+			Subsystem: "name",
+			Name:      "on_network",
+			Help:      "the number names on the blockstack network",
 		}),
 	}
-	prometheus.MustRegister(s.NumDomains)
-	prometheus.MustRegister(s.NumResolved)
-	prometheus.MustRegister(s.NumZonefiles)
-	prometheus.MustRegister(s.ProcessedTo)
+	prometheus.MustRegister(s.callsMade)
+	prometheus.MustRegister(s.namePagesFetched)
+	prometheus.MustRegister(s.nameDetailsFetched)
+	prometheus.MustRegister(s.zonefilesFetched)
+	prometheus.MustRegister(s.namesResolved)
+	prometheus.MustRegister(s.namesOnNetwork)
 	return s
 }

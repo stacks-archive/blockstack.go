@@ -40,6 +40,7 @@ commands () {
 ops commands:
   init-core {number} -> Fast sync core node directories to $(pwd)/core-{number}
   test-core {host} {port}   -> Call the getinfo RPC method against a blockstack-core node running at {host}:{port}
+  remove-pids -> rm the .pid files in core-*/server/*.pid
 EOF
 }
 
@@ -50,7 +51,12 @@ init-core)
 test-core)
   test-core $2
   ;;
+remove-pids)
+  rm core-*/server/*.pid
+  ;;
 *)
   commands
   ;;
 esac
+
+for l in $(curl -s localhost:3000/metrics | grep "^indexer_"); do; echo $l; done
