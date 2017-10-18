@@ -14,11 +14,10 @@ type Client struct {
 
 // NewClient creates a new instance of the blockstack-core rpc client
 func NewClient(conf ServerConfig) *Client {
-	method := "http"
-	if conf.TLS {
-		method = "https"
+	addr := fmt.Sprintf("%s://%s/RPC2", conf.Scheme, conf.Address)
+	if conf.Port != "" {
+		addr = fmt.Sprintf("%s://%s:%v/RPC2", conf.Scheme, conf.Address, conf.Port)
 	}
-	addr := fmt.Sprintf("%s://%s:%v/RPC2", method, conf.Address, conf.Port)
 	client, err := xmlrpc.NewClient(addr, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -31,8 +30,8 @@ func NewClient(conf ServerConfig) *Client {
 // ServerConfig is connection details for an indivdual blockstack-core node
 type ServerConfig struct {
 	Address string
-	Port    int
-	TLS     bool
+	Port    string
+	Scheme  string
 }
 
 // ServerConfigs is a type to hold multiple ServerConfig

@@ -15,3 +15,6 @@
 vendor/
 
 core-deployment/core-*
+
+# Ignore hidden config files
+.*
