@@ -18,28 +18,22 @@ const (
 )
 
 // StartIndexer returns a Indexer
-func StartIndexer(confs []blockstack.ServerConfig) {
+func StartIndexer(clients []*blockstack.Client) {
 	i := &Indexer{
 		StartBlock: blockstack.StartBlock,
 		Domains:    make([]*Domain, 0),
 		// NameZonefileHash: make(map[string]string),
 
 		currentClient: 0,
-		clients:       make([]*blockstack.Client, 0),
+		clients:       clients,
 		domainChan:    make(chan []*Domain),
 		stats:         newIndexerStats(),
-	}
-
-	// Register Clients
-	for _, conf := range confs {
-		i.registerClient(conf)
-		log.Printf("%s Added core node %s:%v to rotation", logPrefix, conf.Address, conf.Port)
 	}
 
 	// Get the expected number of names in all namespaces
 	go i.setExpectedNames()
 
-	i.Add(domainChanWorkers)
+	i.Add(i.domainChanWorkers)
 	// Fetch the full list of names
 	go i.getAllNames()
 
@@ -76,14 +70,17 @@ type Indexer struct {
 	// names holds the list of names from the network
 	names []string
 
+	concurrentPageFetch int
+	domainChanWorkers   int
+
 	sync.Mutex
 	sync.WaitGroup
 }
 
 // GetAllNames retrieves all the names from all namespaces
 func (i *Indexer) getAllNames() {
-	// Kick off domainChanWorkers worker channels
-	for iter := 0; iter < domainChanWorkers; iter++ {
+	// Kick off i.domainChanWorkers worker channels
+	for iter := 0; iter < i.domainChanWorkers; iter++ {
 		go i.handleDomainChan()
 	}
 	ns, err := i.Client().GetAllNamespaces()
@@ -103,7 +100,7 @@ func (i *Indexer) getAllNamesInNamespace(ns string) {
 		log.Fatal(err)
 	}
 	iter := (numNames.Count/100 + 1)
-	sem := make(chan struct{}, concurrentPageFetch)
+	sem := make(chan struct{}, i.concurrentPageFetch)
 	for page := 0; page <= iter; page++ {
 		sem <- struct{}{}
 		go i.getNamePageAsync(page, iter, ns, sem)
@@ -159,7 +156,7 @@ func (i *Indexer) handleDomainChan() {
 
 // resolveDomains takes []*Domains and resolves the URI records
 func (i *Indexer) resolveDomains() {
-	sem := make(chan struct{}, concurrentPageFetch)
+	sem := make(chan struct{}, i.concurrentPageFetch)
 	t0 := time.Time{}
 	for _, domain := range i.Domains {
 		if domain.lastResolved == t0 || time.Now().Sub(domain.lastResolved) > (resolveTimeout*time.Minute) {
@@ -202,21 +199,6 @@ func (i *Indexer) setExpectedNames() {
 	}
 	log.Println(logPrefix, "fetching all", i.ExpectedNames, "from the blockstack network")
 	i.stats.namesOnNetwork.Set(float64(i.ExpectedNames))
-}
-
-// registerClient takes a blockstack.ServerConfig and tries to contact that Server
-// if it is successful it is added to the rotation if not it is excluded
-func (i *Indexer) registerClient(conf blockstack.ServerConfig) {
-	client := blockstack.NewClient(conf)
-	res, err := client.GetInfo()
-	if err != nil {
-		log.Printf("%s Failed to contact %s:%v, excluding from rotation", logPrefix, conf.Address, conf.Port)
-		return
-	}
-	i.Lock()
-	i.clients = append(i.clients, client)
-	i.Unlock()
-	i.CurrentBlock = res.LastBlockProcessed
 }
 
 // processNameZonefileMap takes a map[name]zonefile and returns the go representation

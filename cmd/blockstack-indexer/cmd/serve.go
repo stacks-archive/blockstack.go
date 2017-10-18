@@ -20,6 +20,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/blockstack/go-blockstack/blockstack"
 	"github.com/blockstack/go-blockstack/indexer"
@@ -28,55 +29,54 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	port      = 3000
-	logPrefix = "[main]"
-)
-
-func serverConfFromString(s string) {
-
+// register the clients before passing them to the indexer
+func registerClient(conf blockstack.ServerConfig) *blockstack.Client {
+	client := blockstack.NewClient(conf)
+	_, err := client.GetInfo()
+	if err != nil {
+		log.Printf("%s Failed to contact %s", serveLog, conf)
+		return nil
+	}
+	return client
 }
 
-// serveCmd represents the serve command
 var serveCmd = &cobra.Command{
 	Use:   "serve",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "starts the indexer and serves the metrics server",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfgs := viper.GetStringSlice("hosts")
-		var configs blockstack.ServerConfigs
-		for _, conf := range cfgs {
-			url, err := url.Parse(conf)
+		var clients []*blockstack.Client
+
+		// Make sure the urls are parsable and the hosts are reachable
+		for _, cfg := range cfgs {
+			url, err := url.Parse(cfg)
 			if err != nil {
-				log.Printf("Unable to parse URL %v, not adding to rotation", conf)
+				log.Printf("Unable to parse URL '%v' not adding node to rotation", cfg)
 				continue
 			}
-			configs = append(configs, blockstack.ServerConfig{Address: url.Hostname(), Port: url.Port(), Scheme: url.Scheme})
+			conf := blockstack.ServerConfig{Address: url.Hostname(), Port: url.Port(), Scheme: url.Scheme}
+			if c := registerClient(conf); c != nil {
+				clients = append(clients, c)
+			}
 		}
 
-		go indexer.StartIndexer(configs)
+		// Exit if none of the servers are reachable
+		if len(clients) < 1 {
+			log.Println(serveLog, "no reachable blockstack-nodes configured")
+			os.Exit(1)
+		}
+
+		// Kick off the indexing process in a goroutine for now
+		// TODO: make this run periodically and save the results somewhere
+		go indexer.StartIndexer(clients)
+
 		// Expose the registered metrics via HTTP.
 		http.Handle("/metrics", promhttp.Handler())
-		log.Printf("Serving the prometheus metrics for the indexing service on port :%v...", 3000)
-		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
+		log.Printf("%v Serving the prometheus metrics for the indexing service on port :%v...", serveLog, viper.Get("port"))
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", viper.Get("port")), nil))
 	},
 }
 
 func init() {
 	RootCmd.AddCommand(serveCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// serveCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// serveCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

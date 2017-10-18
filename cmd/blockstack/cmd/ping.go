@@ -13,10 +13,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package cmd
 
-import "github.com/blockstack/go-blockstack/cmd/blockstack/cmd"
+import (
+	"fmt"
 
-func main() {
-	cmd.Execute()
+	"github.com/spf13/cobra"
+)
+
+var pingCmd = &cobra.Command{
+	Use:   "ping",
+	Short: "Calls the ping rpc method on the configured host",
+	Run: func(cmd *cobra.Command, args []string) {
+		client := getClient()
+		res, err := client.Ping()
+		if err != nil {
+			fmt.Println("Error, TODO: Make some real JSON errors for the blockstack library", err)
+		}
+		fmt.Println(res.JSON())
+	},
+}
+
+func init() {
+	RootCmd.AddCommand(pingCmd)
 }

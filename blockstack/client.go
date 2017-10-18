@@ -14,11 +14,7 @@ type Client struct {
 
 // NewClient creates a new instance of the blockstack-core rpc client
 func NewClient(conf ServerConfig) *Client {
-	addr := fmt.Sprintf("%s://%s/RPC2", conf.Scheme, conf.Address)
-	if conf.Port != "" {
-		addr = fmt.Sprintf("%s://%s:%v/RPC2", conf.Scheme, conf.Address, conf.Port)
-	}
-	client, err := xmlrpc.NewClient(addr, nil)
+	client, err := xmlrpc.NewClient(conf.String(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,6 +28,14 @@ type ServerConfig struct {
 	Address string
 	Port    string
 	Scheme  string
+}
+
+func (s ServerConfig) String() string {
+	addr := fmt.Sprintf("%s://%s/RPC2", s.Scheme, s.Address)
+	if s.Port != "" {
+		addr = fmt.Sprintf("%s://%s:%v/RPC2", s.Scheme, s.Address, s.Port)
+	}
+	return addr
 }
 
 // ServerConfigs is a type to hold multiple ServerConfig
