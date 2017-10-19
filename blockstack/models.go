@@ -29,6 +29,15 @@ func (r GetInfoResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetInfoResult
+func (r GetInfoResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // Transaction models a Bitcoin Transaction for various structs here
 type Transaction struct {
 	ValueHash            string  `json:"value_hash"`
@@ -57,6 +66,15 @@ type Transaction struct {
 // JSON returns the JSON representation of Transaction
 func (r Transaction) JSON() string {
 	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// PrettyJSON returns the Pretty Printed JSON representation of Transaction
+func (r Transaction) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -106,6 +124,15 @@ func (r GetNameBlockchainRecordResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetNameBlockchainRecordResult
+func (r GetNameBlockchainRecordResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // LastTx returns the last transcation from the history
 func (r GetNameBlockchainRecordResult) LastTx() Transaction {
 	var tx int
@@ -131,6 +158,15 @@ func (r PingResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of PingResult
+func (r PingResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetNameHistoryBlocksResult is the go represenation of the get_name_history_blocks method
 type GetNameHistoryBlocksResult struct {
 	Status        bool  `json:"status"`
@@ -142,6 +178,15 @@ type GetNameHistoryBlocksResult struct {
 // JSON returns the JSON representation of GetNameHistoryBlocksResult
 func (r GetNameHistoryBlocksResult) JSON() string {
 	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// PrettyJSON returns the Pretty Printed JSON representation of GetNameHistoryBlocksResult
+func (r GetNameHistoryBlocksResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -190,6 +235,15 @@ func (r GetNameAtResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetNameAtResult
+func (r GetNameAtResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetNamesOwnedByAddressResult is the go represenation of the get_names_owned_by_address method
 type GetNamesOwnedByAddressResult struct {
 	Status    bool     `json:"status"`
@@ -201,6 +255,15 @@ type GetNamesOwnedByAddressResult struct {
 // JSON returns the JSON representation of GetNamesOwnedByAddressResult
 func (r GetNamesOwnedByAddressResult) JSON() string {
 	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// PrettyJSON returns the Pretty Printed JSON representation of GetNamesOwnedByAddressResult
+func (r GetNamesOwnedByAddressResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -224,6 +287,15 @@ func (r GetNameCostResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetNameCostResult
+func (r GetNameCostResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetNamespaceCostResult is the go represenation of the get_name_cost method
 type GetNamespaceCostResult struct {
 	Status    bool `json:"status"`
@@ -235,6 +307,15 @@ type GetNamespaceCostResult struct {
 // JSON returns the JSON representation of GetNamespaceCostResult
 func (r GetNamespaceCostResult) JSON() string {
 	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// PrettyJSON returns the Pretty Printed JSON representation of GetNamespaceCostResult
+func (r GetNamespaceCostResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -258,6 +339,15 @@ func (r GetAllNamesResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetAllNamesResult
+func (r GetAllNamesResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetAllNamespacesResult is the go represenation of the get_all_namespaces method
 type GetAllNamespacesResult struct {
 	Status     bool     `json:"status"`
@@ -269,6 +359,15 @@ type GetAllNamespacesResult struct {
 // JSON returns the JSON representation of GetAllNamespacesResult
 func (r GetAllNamespacesResult) JSON() string {
 	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// PrettyJSON returns the Pretty Printed JSON representation of GetAllNamespacesResult
+func (r GetAllNamespacesResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -292,6 +391,15 @@ func (r GetNamesInNamespaceResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetNamesInNamespaceResult
+func (r GetNamesInNamespaceResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetConsensusAtResult is the go represenation of the get_consensus_at method
 type GetConsensusAtResult struct {
 	Status    bool   `json:"status"`
@@ -309,6 +417,15 @@ func (r GetConsensusAtResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetConsensusAtResult
+func (r GetConsensusAtResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetBlockFromConsensusResult is the go represenation of the get_block_from_consensus method
 type GetBlockFromConsensusResult struct {
 	Status    bool `json:"status"`
@@ -320,6 +437,15 @@ type GetBlockFromConsensusResult struct {
 // JSON returns the JSON representation of GetBlockFromConsensusResult
 func (r GetBlockFromConsensusResult) JSON() string {
 	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// PrettyJSON returns the Pretty Printed JSON representation of GetBlockFromConsensusResult
+func (r GetBlockFromConsensusResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -374,6 +500,15 @@ func (r GetZonefilesByBlockResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetZonefilesByBlockResult
+func (r GetZonefilesByBlockResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // Zonefiles is an affordance to return the zonefile hashes in []string
 func (r GetZonefilesByBlockResult) Zonefiles() []string {
 	var out []string
@@ -400,6 +535,15 @@ func (r GetAtlasPeersResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetAtlasPeersResult
+func (r GetAtlasPeersResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetZonefileInventoryResult is the go represenation of the get_zonefile_inventory rpc method
 type GetZonefileInventoryResult struct {
 	Status    bool   `json:"status"`
@@ -417,6 +561,15 @@ func (r GetZonefileInventoryResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetZonefileInventoryResult
+func (r GetZonefileInventoryResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetNameOpsHashAtResult is the go represenation of the get_nameops_hash_at rpc method
 type GetNameOpsHashAtResult struct {
 	Status    bool   `json:"status"`
@@ -428,6 +581,15 @@ type GetNameOpsHashAtResult struct {
 // JSON returns the JSON representation of GetNameOpsHashAtResult
 func (r GetNameOpsHashAtResult) JSON() string {
 	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// PrettyJSON returns the Pretty Printed JSON representation of GetNameOpsHashAtResult
+func (r GetNameOpsHashAtResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -465,6 +627,15 @@ type NamespaceTransaction struct {
 // JSON returns the JSON representation of Transaction
 func (r NamespaceTransaction) JSON() string {
 	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// PrettyJSON returns the Pretty Printed JSON representation of Transaction
+func (r NamespaceTransaction) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -513,6 +684,15 @@ func (r GetNamespaceBlockchainRecordResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetNamespaceBlockchainRecordResult
+func (r GetNamespaceBlockchainRecordResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetZonefilesResult is the go represenation of the get_zonfiles rpc method
 type GetZonefilesResult struct {
 	Status    bool              `json:"status"`
@@ -543,7 +723,18 @@ func (r GetZonefilesResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetZonefilesResult
+func (r GetZonefilesResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetOpHistoryRowsResult is the go represenation of the get_zonfiles rpc method
+// NOTE: The HistoryData field is a Transaction, but the JSON is returned from blockstack-core escaped
+// TODO: Get this fixed server-side
 type GetOpHistoryRowsResult struct {
 	Status      bool `json:"status"`
 	HistoryRows []struct {
@@ -561,6 +752,15 @@ type GetOpHistoryRowsResult struct {
 // JSON returns the JSON representation of GetOpHistoryRowsResult
 func (r GetOpHistoryRowsResult) JSON() string {
 	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// PrettyJSON returns the Pretty Printed JSON representation of GetOpHistoryRowsResult
+func (r GetOpHistoryRowsResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -586,6 +786,15 @@ func (r CountResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of CountResult
+func (r CountResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetNameOpsAffectedAtResult is the go represenation of the get_nameops_affected_at rpc method
 type GetNameOpsAffectedAtResult struct {
 	Status    bool          `json:"status"`
@@ -603,6 +812,15 @@ func (r GetNameOpsAffectedAtResult) JSON() string {
 	return string(byt)
 }
 
+// PrettyJSON returns the Pretty Printed JSON representation of GetNameOpsAffectedAtResult
+func (r GetNameOpsAffectedAtResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
 // GetConsensusHashesResult is the go representation of the get_consensus_hashes rpc method
 type GetConsensusHashesResult struct {
 	Status          bool           `json:"status"`
@@ -614,6 +832,15 @@ type GetConsensusHashesResult struct {
 // JSON returns the JSON representation of GetConsensusHashesResult
 func (r GetConsensusHashesResult) JSON() string {
 	byt, err := json.Marshal(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(byt)
+}
+
+// PrettyJSON returns the Pretty Printed JSON representation of GetConsensusHashesResult
+func (r GetConsensusHashesResult) PrettyJSON() string {
+	byt, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
 		log.Fatal(err)
 	}
