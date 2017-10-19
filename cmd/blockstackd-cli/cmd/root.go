@@ -48,11 +48,20 @@ func Execute() {
 
 // getClient returns the client for the configured node
 func getClient() blockstack.Client {
+	scheme := "http"
 	url, err := url.Parse(viper.GetString("node"))
 	if err != nil {
-		fmt.Printf("Unable to parse URL not adding node to rotation: %v", err)
+		fmt.Printf("Unable to parse node address: %v\n", err)
+		os.Exit(1)
 	}
-	conf := blockstack.ServerConfig{Address: url.Hostname(), Port: url.Port(), Scheme: url.Scheme}
+	if url.Scheme != "" {
+		scheme = url.Scheme
+	}
+	conf := blockstack.ServerConfig{Address: url.Hostname(), Port: url.Port(), Scheme: scheme}
+	if conf.Address == "" {
+		fmt.Printf("Unable to parse node address: %#v\n", conf)
+		os.Exit(1)
+	}
 	return *blockstack.NewClient(conf)
 }
 
@@ -106,7 +115,7 @@ func initConfig() {
 			os.Exit(1)
 		}
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".blockstack")
+		viper.SetConfigName(".blockstackd-cli")
 	}
 	viper.AutomaticEnv()
 	err := viper.ReadInConfig()
