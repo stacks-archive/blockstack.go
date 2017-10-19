@@ -1,0 +1,12 @@
+package: github.com/blockstack/go-blockstack
+import:
+- package: github.com/gorilla/mux
+- package: github.com/kolo/xmlrpc
+- package: github.com/miekg/dns
+- package: github.com/mitchellh/go-homedir
+- package: github.com/prometheus/client_golang
+  subpackages:
+  - prometheus
+  - prometheus/promhttp
+- package: github.com/spf13/cobra
+- package: github.com/spf13/viper
