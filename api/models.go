@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	// "fmt"
 	"log"
+
+	"github.com/blockstack/go-blockstack/indexer"
 )
 
 // V1GetNameResponse is the response for the /v1/names/:name
@@ -113,7 +115,7 @@ func (r V1GetNamesInNamespaceResponse) JSON() []byte {
 
 // V2GetUserProfileResponse holds the response for the /v2/users/{name} route
 // NOTE: This is the big one
-type V2GetUserProfileResponse struct{}
+// type V2GetUserProfileResponse struct{}
 
 // JSON proves a JSON output for ResponseWriter
 func (r V2GetUserProfileResponse) JSON() []byte {
@@ -122,6 +124,20 @@ func (r V2GetUserProfileResponse) JSON() []byte {
 		log.Fatal(err)
 	}
 	return byt
+}
+
+type V2GetUserProfileResponse map[string]V2GetUserProfile
+
+type V2GetUserProfile struct {
+	Expired       string          `json:"expired"`
+	Profile       indexer.Profile `json:"profile"`
+	Verifications []struct {
+		Identifier string `json:"identifier"`
+		ProofURL   string `json:"proof_url"`
+		Service    string `json:"service"`
+		Valid      bool   `json:"valid"`
+	} `json:"verifications"`
+	ZoneFile indexer.Zonefile `json:"zone_file"`
 }
 
 // V1GetNameOpsAtHeightResponse holds the response for the /v1/blockchains/bitcoin/operations/:blockHeight route

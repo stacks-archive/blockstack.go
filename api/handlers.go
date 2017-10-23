@@ -3,14 +3,16 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/mux"
 	"github.com/blockstack/go-blockstack/blockstack"
 	"github.com/blockstack/go-blockstack/indexer"
+	"github.com/gorilla/mux"
+	"github.com/miekg/dns"
 )
 
 const (
@@ -58,9 +60,15 @@ func (h *Handlers) V1GetNameHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	nameDetails, err := h.Client.GetNameBlockchainRecord(name)
 	if err != nil {
-		er := strings.Split(err.Error(), ": ")[1]
-		if er == "invalid name" {
-			w.Write(jsonKV("error", er))
+		strs := strings.Split(err.Error(), ": ")
+		if len(strs) == 0 {
+			w.Write(jsonKV("error", err.Error()))
+			return
+		} else if err.Error() == "Not found." {
+			w.Write(jsonKV("error", err.Error()))
+			return
+		} else {
+			w.Write(jsonKV("error", strs[1]))
 			return
 		}
 	}
@@ -184,8 +192,65 @@ func (h *Handlers) V1GetNamesInNamespaceHandler(w http.ResponseWriter, r *http.R
 }
 
 // V2GetUserProfileHandler handles response for /v2/users/{name} route
-// NOTE: The big one
-func (h *Handlers) V2GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {}
+func (h *Handlers) V2GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	spl := strings.Split(name, ".")
+	if len(spl) != 3 && len(spl) != 2 {
+		w.Write(jsonKV("error", "invalid name"))
+		return
+	} else if spl[len(spl)-1] != "id" {
+		w.Write(jsonKV("error", "invalid namespace"))
+		return
+	}
+	nameDetails, err := h.Client.GetNameBlockchainRecord(name)
+	if err != nil {
+		strs := strings.Split(err.Error(), ": ")
+		if len(strs) == 0 {
+			w.Write(jsonKV("error", err.Error()))
+			return
+		} else if err.Error() == "Not found." {
+			w.Write(jsonKV("error", err.Error()))
+			return
+		} else {
+			w.Write(jsonKV("error", strs[1]))
+			return
+		}
+	}
+
+	// if there are no name details then the name is available
+	if !nameDetails.Status {
+		w.Write(jsonKV("status", "available"))
+		return
+	}
+
+	// divine the status of the name
+	lastTx := nameDetails.LastTx()
+	var status string
+	if lastTx.Opcode == "NAME_PREORDER" {
+		status = "pending"
+	} else if nameDetails.Record.ExpireBlock > nameDetails.Lastblock {
+		status = "expired"
+	} else {
+		status = "registered"
+	}
+
+	// If it is registered and there is a zonefile hash look that up
+	if nameDetails.Status && nameDetails.Record.ValueHash != "" {
+		zonefile, err := h.Client.GetZonefiles([]string{nameDetails.Record.ValueHash})
+		if err != nil {
+			log.Fatal(err)
+		}
+		zf := parseZonefile(zonefile.Decode()[nameDetails.Record.ValueHash])
+		fmt.Printf("%#v\n", zf)
+		w.Write(zf.JSON())
+		fmt.Println("herehre", status)
+		return
+	} else if nameDetails.Status {
+		w.Write(jsonKV("error", "No zone file loaded"))
+		return
+	}
+	w.Write(jsonKV("error", "slipped request"))
+}
 
 // V1GetNameOpsAtHeightHandler handles response for /v1/blockchains/{blockchain}/operations/{blockHeight} route
 func (h *Handlers) V1GetNameOpsAtHeightHandler(w http.ResponseWriter, r *http.Request) {
@@ -218,15 +283,74 @@ func (h *Handlers) V1GetNameOpsAtHeightHandler(w http.ResponseWriter, r *http.Re
 // V1GetNamesOwnedByAddressHandler handles response for /v1/addresses/bitcoin/{address} route
 func (h *Handlers) V1GetNamesOwnedByAddressHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	log.Println("address", vars["address"])
-	w.Write([]byte("ok\n"))
+	res, err := h.Client.GetNamesOwnedByAddress(vars["address"])
+	if err != nil {
+		w.Write([]byte(err.JSON()))
+		return
+	}
+	out, er := json.Marshal(map[string][]string{"names": res.Names})
+	if er != nil {
+		w.Write(jsonKV("error", "failed to unmarshall json response"))
+		return
+	}
+	w.Write(out)
 }
 
 // V1GetZonefileHandler handles response for /v1/names/{name}/zonefile route
 func (h *Handlers) V1GetZonefileHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	log.Println("name", vars["name"])
-	w.Write([]byte("ok\n"))
+	name := mux.Vars(r)["name"]
+	spl := strings.Split(name, ".")
+	if len(spl) != 3 && len(spl) != 2 {
+		w.Write(jsonKV("error", "invalid name"))
+		return
+	} else if spl[len(spl)-1] != "id" {
+		w.Write(jsonKV("error", "invalid namespace"))
+		return
+	}
+	nameDetails, err := h.Client.GetNameBlockchainRecord(name)
+	if err != nil {
+		strs := strings.Split(err.Error(), ": ")
+		if len(strs) == 0 {
+			w.Write(jsonKV("error", err.Error()))
+			return
+		} else if err.Error() == "Not found." {
+			w.Write(jsonKV("error", err.Error()))
+			return
+		} else {
+			w.Write(jsonKV("error", strs[1]))
+			return
+		}
+	}
+
+	// if there are no name details then the name is available
+	if !nameDetails.Status {
+		w.Write(jsonKV("error", "name not registered"))
+		return
+	}
+	// // divine the status of the name
+	// lastTx := nameDetails.LastTx()
+	// var status string
+	// if lastTx.Opcode == "NAME_PREORDER" {
+	// 	status = "pending"
+	// } else if nameDetails.Record.ExpireBlock > nameDetails.Lastblock {
+	// 	status = "expired"
+	// } else {
+	// 	status = "registered"
+	// }
+
+	// If it is registered and there is a zonefile hash look that up
+	if nameDetails.Record.ValueHash != "" {
+		zonefile, err := h.Client.GetZonefiles([]string{nameDetails.Record.ValueHash})
+		if err != nil {
+			log.Fatal(err)
+		}
+		w.Write(jsonKV("zonefile", zonefile.Decode()[nameDetails.Record.ValueHash]))
+		return
+	} else if nameDetails.Status {
+		w.Write(jsonKV("error", "No zone file loaded"))
+		return
+	}
+	w.Write(jsonKV("error", "slipped request"))
 }
 
 // V1GetNamespaceBlockchainRecordHandler handles response for /v1/namespaces/{namespace} route
@@ -235,7 +359,6 @@ func (h *Handlers) V1GetZonefileHandler(w http.ResponseWriter, r *http.Request) 
 // and it looks like core.blockstack.org has data from some other transaction
 func (h *Handlers) V1GetNamespaceBlockchainRecordHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	fmt.Println("NAMESPACE", vars)
 	res, err := h.Client.GetNamespaceBlockchainRecord(vars["namespace"])
 	if err != nil {
 		// TODO: return error to client here and mention that theres a connection error to core node
@@ -340,28 +463,87 @@ func (h *Handlers) V1GetNamespaceBlockchainRecordHandler(w http.ResponseWriter, 
 
 // V1GetNamespacesHandler handles response for /v1/namespaces route
 func (h *Handlers) V1GetNamespacesHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("ok\n"))
+	res, err := h.Client.GetAllNamespaces()
+	if err != nil {
+		w.Write([]byte(err.JSON()))
+		return
+	}
+	out, er := json.Marshal(res.Namespaces)
+	if er != nil {
+		w.Write(jsonKV("error", "failed to unmarshall json response"))
+		return
+	}
+	w.Write(out)
+}
+func parseZonefile(zonefile string) *indexer.Zonefile {
+	zf := &indexer.Zonefile{
+		Raw:       zonefile,
+		RRs:       make([]dns.RR, 0),
+		Compliant: true,
+	}
+	for x := range dns.ParseZone(strings.NewReader(zonefile), "", "") {
+		fmt.Println(x)
+		if x.Error != nil {
+			zf.Compliant = false
+			log.Println(zf)
+			// 	var legacyProfile *indexer.LegacyProfile
+			// 	// NOTE: Squash error here. We don't care about it
+			// 	json.Unmarshal([]byte(zonefile), &legacyProfile)
+			// 	if legacyProfile.Account == nil {
+			// 		legacyProfile = nil
+			// 	} else {
+			// 		legacyProfile = legacyProfile
+			// 	}
+		} else {
+			// TODO: Handle fetching subdomains here...
+			// if x.RR.Header().Rrtype == 16 {
+			// 	fmt.Println(x.RR)
+			// }
+			// created_equal.self_evident_truth.iz3600	IN	TXT	"owner=1AYddAnfHbw6bPNvnsQFFrEuUdhMhf2XG9" "seqn=0" "parts=1" "zf0=JE9SSUdJTiBjcmVhdGVkX2VxdWFsCiRUVEwgMzYwMApfaHR0cHMuX3RjcCBVUkkgMTAgMSAiaHR0cHM6Ly93d3cuY3MucHJpbmNldG9uLmVkdS9+YWJsYW5rc3QvY3JlYXRlZF9lcXVhbC5qc29uIgpfZmlsZSBVUkkgMTAgMSAiZmlsZTovLy90bXAvY3JlYXRlZF9lcXVhbC5qc29uIgo="
+			zf.RRs = append(zf.RRs, x.RR)
+		}
+	}
+	return zf
 }
 
-// // NumNamesHandler the /resolver/numnames route
-// func (h *Handlers) NumNamesHandler(w http.ResponseWriter, r *http.Request) {
-// 	h.Indexer.Lock()
-// 	w.Write([]byte(fmt.Sprintf("Resolver Stats:\n  CurrentBlock: %v\n  CurrentNames: %v\n  ExpectedNames: %v\n", h.Indexer.CurrentBlock, len(h.Indexer.Names), h.Indexer.ExpectedNames)))
-// 	h.Indexer.Unlock()
-// }
-//
-// // NumNamesHandler the /resolver/names route
-// func (h *Handlers) GetNamesHandler(w http.ResponseWriter, r *http.Request) {
-// 	var out []string
-// 	h.Indexer.Lock()
-// 	names := h.Indexer.Names
-// 	h.Indexer.Unlock()
-// 	for _, name := range names {
-// 		out = append(out, name.Name)
-// 	}
-// 	byt, err := json.Marshal(out)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	w.Write(byt)
-// }
+// ResolveProfile takes an initialized domain and fetches the resulting profile for that domain
+func ResolveProfile(zf *indexer.Zonefile, name string) *indexer.Profile {
+	// fmt.Println(d.Name)
+	URI := zf.GetURI()
+	// Check that a URI was returned and there is a Target
+	if URI != nil {
+		target := URI.Target
+
+		// Handle dropbox urls with no http prefix
+		if strings.TrimPrefix(target, "www") != target {
+			target = fmt.Sprintf("http://%s", target)
+		}
+		res, err := http.Get(target)
+		if err != nil || res.StatusCode == 404 {
+			log.Printf("Error fetching profile for %v: %v\n", name, err)
+			return nil
+		}
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Printf("Error reading body for %v: %v", name, err)
+			return nil
+		}
+		var p1 []indexer.Profile
+		err = json.Unmarshal(body, &p1)
+		if err != nil && strings.Contains(err.Error(), "cannot unmarshal object") {
+			var p2 indexer.Profile
+			json.Unmarshal(body, &p2)
+			if err != nil {
+				fmt.Printf("Error unmarshalling %v\nERROR: %v\nRES: %v\nTARGET: %v\n\n", name, err, string(body), target)
+				return nil
+			}
+			return &p2
+		} else {
+			if len(p1) > 0 {
+				return &p1[0]
+			}
+		}
+		res.Body.Close()
+	}
+	return nil
+}

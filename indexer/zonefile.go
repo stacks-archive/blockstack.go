@@ -2,7 +2,7 @@ package indexer
 
 import (
 	"encoding/json"
-	// "fmt"
+	"fmt"
 	// "io/ioutil"
 	// "log"
 	// "net/http"
@@ -16,7 +16,38 @@ type Zonefile struct {
 	Raw string   `json:"raw"`
 	RRs []dns.RR `json:"RRs"`
 
-	compliant bool
+	Compliant bool
+}
+
+type zonefileOut struct {
+	Origin string   `json:"$origin"`
+	TTL    string   `json:"$ttl"`
+	URI    []dns.RR `json:"URI"`
+	TXT    []dns.RR `json:"TXT"`
+}
+
+// JSON representation of a Zonefile
+func (zf *Zonefile) JSON() []byte {
+	var byt []byte
+	for _, rr := range zf.RRs {
+		fmt.Printf("%#v\n", rr)
+	}
+	return byt
+}
+
+// GetURI returns the first URI with a Target starting with http
+func (zf *Zonefile) GetURI() *dns.URI {
+	var URI *dns.URI
+	for _, rr := range zf.RRs {
+		if rr.Header().Rrtype == 256 {
+			uri := rr.(*dns.URI)
+			if goodTarget(uri.Target) {
+				URI = uri
+				break
+			}
+		}
+	}
+	return URI
 }
 
 // AddZonefile takes a string representation of a Zonefile and parses out some info
@@ -24,11 +55,11 @@ func (d *Domain) AddZonefile(zonefile string) {
 	d.Zonefile = &Zonefile{
 		Raw:       zonefile,
 		RRs:       make([]dns.RR, 0),
-		compliant: true,
+		Compliant: true,
 	}
 	for x := range dns.ParseZone(strings.NewReader(zonefile), "", "") {
 		if x.Error != nil {
-			d.Zonefile.compliant = false
+			d.Zonefile.Compliant = false
 			var legacyProfile LegacyProfile
 			// NOTE: Squash error here. We don't care about it
 			json.Unmarshal([]byte(zonefile), &legacyProfile)

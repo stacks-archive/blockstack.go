@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gorilla/mux"
 	"github.com/blockstack/go-blockstack/blockstack"
+	"github.com/gorilla/mux"
 	// "github.com/blockstack/go-blockstack/indexer"
 )
 
@@ -98,7 +98,7 @@ func NewRouter(conf blockstack.ServerConfig) *mux.Router {
 		Route{
 			Name:        "V1GetNamespaces",
 			Method:      "GET",
-			Pattern:     "/v1/namespace",
+			Pattern:     "/v1/namespaces",
 			HandlerFunc: h.V1GetNamespacesHandler,
 		},
 		Route{

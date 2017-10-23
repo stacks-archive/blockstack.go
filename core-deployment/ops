@@ -1,7 +1,7 @@
 #!/bin/bash
 
 image=quay.io/blockstack/blockstack-core
-tag=v0.17.0.7
+tag=v0.18.1-browser
 
 init-core () {
   if [ -z "$1" ]; then
@@ -12,14 +12,14 @@ init-core () {
   local coreData=core-$1
   echo "Initializing Blockstack Core node. This task runs in the background and may take up to 20 minutes..."
   mkdir -p $coreData/server/
-  cp $(pwd)/blockstack-server.ini $coreData/server/blockstack-server.ini
-  docker run -d --rm \
+  printf "[bitcoind]\np2p_port = 8333\nregtest = False\nspv_path = /root/.virtualchain-spv-headers.dat\nserver = bitcoin.blockstack.com\npasswd = blockstacksystem\nuser = blockstack\ntimeout = 300\nport = 8332\nuse_https = False\n[blockstack]\nemail = foo@bar.com\nserver_version = 0.17.07\n" > $coreData/server/blockstack-server.ini
+  docker run -it \
     -v $(pwd)/$coreData/server/:/root/.blockstack-server/ \
-    -v $(pwd)/$coreData/api/:/root/.blockstack \
     --name blockstack-core-init-$1 \
     $image:$tag \
     blockstack-core --debug fast_sync http://fast-sync.blockstack.org/snapshot.bsk > /dev/null
 }
+# -v $(pwd)/$coreData/api/:/root/.blockstack \
 
 test-core () {
   if [ -z "$1" ]; then
@@ -59,4 +59,4 @@ remove-pids)
   ;;
 esac
 
-for l in $(curl -s localhost:3000/metrics | grep "^indexer_"); do; echo $l; done
+# for l in $(curl -s localhost:3000/metrics | grep "^indexer_"); do; echo $l; done
