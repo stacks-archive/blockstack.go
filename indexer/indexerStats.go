@@ -3,6 +3,7 @@ package indexer
 import (
 	// "log"
 	// "time"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -13,45 +14,48 @@ const (
 )
 
 type indexerStats struct {
-	callsMade          prometheus.Counter
-	namePagesFetched   prometheus.Counter
-	nameDetailsFetched prometheus.Counter
-	zonefilesFetched   prometheus.Counter
-	namesResolved      prometheus.Counter
-	namesOnNetwork     prometheus.Gauge
-	timeSinceStart     prometheus.Gauge
+	callsMade           prometheus.Gauge
+	namePagesFetched    prometheus.Gauge
+	nameDetailsFetched  prometheus.Gauge
+	zonefilesFetched    prometheus.Gauge
+	namesResolved       prometheus.Gauge
+	namesOnNetwork      prometheus.Gauge
+	timeSinceStart      prometheus.Gauge
+	sentDownResolveChan prometheus.Gauge
+
+	sync.Mutex
 }
 
 func newIndexerStats() *indexerStats {
 	s := &indexerStats{
-		callsMade: prometheus.NewCounter(prometheus.CounterOpts{
+		callsMade: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: promNameSpace,
 			Subsystem: "core_calls",
 			Name:      "num_made",
 			Help:      "the number of core RPC calls made",
 		}),
-		namePagesFetched: prometheus.NewCounter(prometheus.CounterOpts{
+		namePagesFetched: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: promNameSpace,
 			Subsystem: "name",
 			Name:      "pages_fetched",
 			Help:      "the number of pages of 100 names fetched",
 		}),
-		nameDetailsFetched: prometheus.NewCounter(prometheus.CounterOpts{
+		nameDetailsFetched: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: promNameSpace,
 			Subsystem: "name",
 			Name:      "details_fetched",
 			Help:      "the number names where details have been fetched",
 		}),
-		zonefilesFetched: prometheus.NewCounter(prometheus.CounterOpts{
+		zonefilesFetched: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: promNameSpace,
 			Subsystem: "zonefiles",
 			Name:      "num_fetched",
 			Help:      "the number zonefiles for given names that have been fetched",
 		}),
-		namesResolved: prometheus.NewCounter(prometheus.CounterOpts{
+		namesResolved: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: promNameSpace,
-			Subsystem: "name",
-			Name:      "resolved",
+			Subsystem: "resolve",
+			Name:      "num_resolved",
 			Help:      "the number names that have been resolved",
 		}),
 		namesOnNetwork: prometheus.NewGauge(prometheus.GaugeOpts{
@@ -60,6 +64,12 @@ func newIndexerStats() *indexerStats {
 			Name:      "on_network",
 			Help:      "the number names on the blockstack network",
 		}),
+		sentDownResolveChan: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: promNameSpace,
+			Subsystem: "resolve",
+			Name:      "down_chan",
+			Help:      "the number names sent down the resolve channel",
+		}),
 	}
 	prometheus.MustRegister(s.callsMade)
 	prometheus.MustRegister(s.namePagesFetched)
@@ -67,5 +77,6 @@ func newIndexerStats() *indexerStats {
 	prometheus.MustRegister(s.zonefilesFetched)
 	prometheus.MustRegister(s.namesResolved)
 	prometheus.MustRegister(s.namesOnNetwork)
+	prometheus.MustRegister(s.sentDownResolveChan)
 	return s
 }

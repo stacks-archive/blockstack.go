@@ -3,7 +3,6 @@ package indexer
 import (
 	"log"
 	"sync"
-	"time"
 
 	"github.com/blockstack/go-blockstack/blockstack"
 )
@@ -12,186 +11,92 @@ import (
 const (
 	logPrefix      = "[indexer]"
 	resolveTimeout = 30
-
-	concurrentPageFetch = 1000
-	domainChanWorkers   = 100
 )
-
-// StartIndexer returns a Indexer
-func StartIndexer(clients []*blockstack.Client) {
-	i := &Indexer{
-		StartBlock: blockstack.StartBlock,
-		Domains:    make([]*Domain, 0),
-		// NameZonefileHash: make(map[string]string),
-
-		currentClient: 0,
-		clients:       clients,
-		domainChan:    make(chan []*Domain),
-		stats:         newIndexerStats(),
-	}
-
-	// Get the expected number of names in all namespaces
-	go i.setExpectedNames()
-
-	i.Add(i.domainChanWorkers)
-	// Fetch the full list of names
-	go i.getAllNames()
-
-	i.Wait()
-
-	for _, d := range i.Domains {
-		log.Println(d.JSON())
-	}
-	// Resolve Domains
-	// log.Printf("%v Resolv	ing domains", logPrefix)
-	// i.resolveDomains()
-}
 
 // The Indexer talks to blockstack-core and resolves all
 // the domains and subdomains - hopefully
 type Indexer struct {
-	StartBlock    int
 	CurrentBlock  int
-	Domains       []*Domain
 	ExpectedNames int
+	Domains       []*Domain
+
+	// Config holds all the config vars
+	Config *Config
 
 	// stats holds the prometheus statss
 	stats *indexerStats
 
-	// clients is an array of blockstack-core nodes
-	clients []*blockstack.Client
-
-	// currentClient tracks the last used client out of a list
-	currentClient int
-
 	// nameChan handles the names coming back from fetching the full list of names
+	// the workers then process them and add the zonefiles to the domains
 	domainChan chan []*Domain
+	domainWait sync.WaitGroup
 
-	// names holds the list of names from the network
-	names []string
-
-	concurrentPageFetch int
-	domainChanWorkers   int
+	// once the zonefiles are added then names travel down the resolve chan
+	// the workers then resolve them.
+	resolveChan chan *Domain
+	resolveWait sync.WaitGroup
 
 	sync.Mutex
 	sync.WaitGroup
 }
 
-// GetAllNames retrieves all the names from all namespaces
-func (i *Indexer) getAllNames() {
-	// Kick off i.domainChanWorkers worker channels
-	for iter := 0; iter < i.domainChanWorkers; iter++ {
-		go i.handleDomainChan()
-	}
-	ns, err := i.Client().GetAllNamespaces()
-	if err != nil {
-		log.Fatal(err)
-	}
-	i.CurrentBlock = ns.Lastblock
-	for _, n := range ns.Namespaces {
-		go i.getAllNamesInNamespace(n)
+// NewIndexer returns a new *Indexer
+func NewIndexer(conf *Config) *Indexer {
+	return &Indexer{
+		Domains: make([]*Domain, 0),
+		// Config:  NewConfig(clients, 100, 1000),
+		Config: conf,
+
+		domainChan:  make(chan []*Domain),
+		resolveChan: make(chan *Domain),
+		stats:       newIndexerStats(),
 	}
 }
 
-// getAllNamesInNamespace gets all the names in a namespace
-func (i *Indexer) getAllNamesInNamespace(ns string) {
-	numNames, err := i.Client().GetNumNamesInNamespace(ns)
-	if err != nil {
-		log.Fatal(err)
-	}
-	iter := (numNames.Count/100 + 1)
-	sem := make(chan struct{}, i.concurrentPageFetch)
-	for page := 0; page <= iter; page++ {
-		sem <- struct{}{}
-		go i.getNamePageAsync(page, iter, ns, sem)
-	}
-}
-
-// A goroutine safe method for fetching the list of names from blockstack-core
-func (i *Indexer) getNamePageAsync(page int, iter int, ns string, sem chan struct{}) {
-	namePage, err := i.Client().GetNamesInNamespace(ns, page*100, 100)
-	if err != nil {
-		log.Fatal(err)
-	}
-	var domains []*Domain
-	for _, name := range namePage.Names {
-		// Fetch the name details here as well
-		dom := NewDomain(name)
-		res, err := i.Client().GetNameAt(name, i.CurrentBlock)
-		if err != nil {
-			log.Println("Error fetching name details", err)
-		}
-		i.stats.nameDetailsFetched.Add(1)
-		dom.getNameAtRes = res
-		domains = append(domains, dom)
-	}
-	i.stats.namePagesFetched.Add(1)
-	i.domainChan <- domains
-	<-sem
-}
-
-// handleDomainChan handles the names coming back from blockstack core
-// then it fetches the zonefiles and appends them to i.Domains
-func (i *Indexer) handleDomainChan() {
-	for n := range i.domainChan {
-		zfhs := Domains(n).getZonefiles()
-		res, err := i.Client().GetZonefiles(zfhs)
-		if err != nil {
-			panic(err)
-		}
-		i.stats.zonefilesFetched.Add(float64(len(zfhs)))
-		zfs := res.Decode()
-		i.Lock()
-		for _, dom := range n {
-			dom.AddZonefile(zfs[n[0].getNameAtRes.Records[0].ValueHash])
-			i.Domains = append(i.Domains, dom)
-		}
-		i.Unlock()
-		if len(i.names) == i.ExpectedNames {
-			close(i.domainChan)
-		}
-	}
-	i.Done()
-}
-
-// resolveDomains takes []*Domains and resolves the URI records
-func (i *Indexer) resolveDomains() {
-	sem := make(chan struct{}, i.concurrentPageFetch)
-	t0 := time.Time{}
-	for _, domain := range i.Domains {
-		if domain.lastResolved == t0 || time.Now().Sub(domain.lastResolved) > (resolveTimeout*time.Minute) {
-			sem <- struct{}{}
-			go domain.ResolveProfile(sem)
-			i.stats.namesResolved.Add(1)
-		}
-	}
-}
-
-// Client provides a convinent interface to loop through provided multiple clients
-func (i *Indexer) Client() *blockstack.Client {
+// client provides a convinent interface to loop through provided multiple clients
+func (i *Indexer) client() *blockstack.Client {
 	var client *blockstack.Client
-	i.Lock()
-	if len(i.clients) == 1 {
-		return i.clients[0]
+
+	// Lock the config object to prevent concurrent access
+	i.Config.Lock()
+
+	// If there is only one client, return it quickly
+	if len(i.Config.clients) == 1 {
+		client = i.Config.clients[0]
+		i.Config.Unlock()
+		return client
 	}
-	client = i.clients[i.currentClient]
-	i.currentClient++
-	if len(i.clients) == i.currentClient {
-		i.currentClient = 0
+
+	// Reset the counter if currentClient is greater than the number of clients
+	i.Config.currentClient++
+	if len(i.Config.clients) <= i.Config.currentClient {
+		i.Config.currentClient = 0
 	}
-	i.stats.callsMade.Add(1)
-	i.Unlock()
+
+	// Return the client at index currentClient
+	client = i.Config.clients[i.Config.currentClient]
+
+	i.Config.Unlock()
+
+	// Increment the number of calls made in a goroutine
+	go func(s *indexerStats) {
+		// Lock the stats object to prevent concurrent access
+		i.stats.Lock()
+		i.stats.callsMade.Add(1)
+		i.stats.Unlock()
+	}(i.stats)
+
 	return client
 }
 
 // Gets the expected number of names from blockstack-core
 func (i *Indexer) setExpectedNames() {
-	res, err := i.Client().GetAllNamespaces()
+	res, err := i.client().GetAllNamespaces()
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, ns := range res.Namespaces {
-		res, err := i.Client().GetNumNamesInNamespace(ns)
+		res, err := i.client().GetNumNamesInNamespace(ns)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -229,7 +134,7 @@ func (i *Indexer) setExpectedNames() {
 // 	iter := 0
 // 	for iter < 100000 {
 // 		// Fetch batch of Zonefiles by block
-// 		res, err := i.Client().GetZonefilesByBlock(startBlock, endBlock, (iter * 100), 100)
+// 		res, err := i.client().GetZonefilesByBlock(startBlock, endBlock, (iter * 100), 100)
 // 		if err != nil {
 // 			log.Fatal(err)
 // 		}
@@ -252,7 +157,7 @@ func (i *Indexer) setExpectedNames() {
 //
 // 	// Loop over the batches and call get_zonefile for each
 // 	for _, batch := range zfhrs {
-// 		res, err := i.Client().GetZonefiles(batch.Zonefiles())
+// 		res, err := i.client().GetZonefiles(batch.Zonefiles())
 // 		if err != nil {
 // 			log.Fatal(err)
 // 		}

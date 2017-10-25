@@ -4,13 +4,118 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
 
 	"github.com/kolo/xmlrpc"
 )
 
 // Client is the exportable object that the RPC methods are defined on
 type Client struct {
-	node *xmlrpc.Client
+	node    *xmlrpc.Client
+	config  ServerConfig
+	getInfo GetInfoResult
+}
+
+// Clients is a collection of clients
+type Clients []*Client
+
+// MUST POPULATE GETINFO FOR CLIENTS BEFORE RUNNING
+func (c Clients) consensusPeers() ([]*Client, []Error) {
+	var out []*Client
+	var outErr []Error
+	var hash string
+	numSame := 0
+	hashes := make(map[string]int)
+	for _, client := range c {
+		hashes[client.getInfo.Consensus]++
+	}
+
+	// If there is 1 consensus hash between the clients, return them all
+	if len(hashes) == 1 {
+		return c, []Error{nil}
+	}
+
+	// Find the most common ConsensusHash
+	for key := range hashes {
+		if hashes[key] > numSame {
+			numSame = hashes[key]
+			hash = key
+		}
+	}
+
+	// Sort the clients and errors
+	for _, client := range c {
+		if client.getInfo.Consensus != hash {
+			outErr = append(outErr, ClientRegistrationError{URL: client.config.String(), Err: "Client failed consensus check"})
+		} else {
+			out = append(out, client)
+		}
+	}
+
+	return out, outErr
+}
+
+// register takes and array of Client and makes
+// sure they are all valid servers and in consensus
+func (c Clients) register() ([]*Client, []Error) {
+	var out []*Client
+	var getInfo []*Client
+	var getInfoErrs []Error
+
+	// Run GetInfo call for each client and save any errors
+	for _, client := range c {
+		res, err := client.GetInfo()
+		// If there is no result to check against, and no error on call
+		// And not indexing, the result is the right one.
+		if err == nil && !res.Indexing {
+			client.getInfo = res
+			getInfo = append(getInfo, client)
+			// If client is indexing return the error
+		} else if err == nil && res.Indexing {
+			getInfoErrs = append(getInfoErrs, ClientRegistrationError{URL: client.config.String(), Err: "Client still indexing"})
+			// If the error is not nil, return the error
+		} else if err != nil {
+			getInfoErrs = append(getInfoErrs, ClientRegistrationError{URL: client.config.String(), Err: err.Error()})
+		}
+	}
+
+	// Pick out the consensusPeers
+	out, outErr := Clients(getInfo).consensusPeers()
+
+	// Append the errors
+	for _, err := range getInfoErrs {
+		outErr = append(outErr, err)
+	}
+
+	// Return the good ones and errors
+	return out, outErr
+}
+
+// ValidClients takes an array of strings and returns a *Client for
+// Each valid URL that is in consensus with the others
+func ValidClients(urls []string) ([]*Client, []Error) {
+	var clients []*Client
+	var urlErrs []Error
+
+	// Parse each url and return error if not there
+	for _, uri := range urls {
+		purl, err := url.Parse(uri)
+		if err != nil {
+			urlErrs = append(urlErrs, ClientRegistrationError{URL: uri, Err: "Failed to parse URL"})
+		} else {
+			clients = append(clients, NewClient(ServerConfig{Address: purl.Hostname(), Port: purl.Port(), Scheme: purl.Scheme}))
+		}
+	}
+
+	// register the clients that pass
+	out, outErr := Clients(clients).register()
+
+	// Return all errors
+	for _, err := range urlErrs {
+		outErr = append(outErr, err)
+	}
+
+	return out, outErr
 }
 
 // NewClient creates a new instance of the blockstack-core rpc client
@@ -20,7 +125,8 @@ func NewClient(conf ServerConfig) *Client {
 		log.Fatal(err)
 	}
 	return &Client{
-		node: client,
+		node:   client,
+		config: conf,
 	}
 }
 
@@ -136,6 +242,35 @@ func (err JSONUnmarshalError) JSON() string {
 
 // PrettyJSON allows for easy Marshal
 func (err JSONUnmarshalError) PrettyJSON() string {
+	byt, e := json.MarshalIndent(err, "", "    ")
+	if e != nil {
+		log.Fatal(e)
+	}
+	return string(byt)
+}
+
+// ClientRegistrationError represents an error resulting from a failed RPC call
+type ClientRegistrationError struct {
+	URL string `json:"url"`
+	Err string `json:"error"`
+}
+
+// Error satisfies the error interface
+func (err ClientRegistrationError) Error() string {
+	return err.Err
+}
+
+// JSON allows for easy Marshal
+func (err ClientRegistrationError) JSON() string {
+	byt, e := json.Marshal(err)
+	if e != nil {
+		log.Fatal(e)
+	}
+	return string(byt)
+}
+
+// PrettyJSON allows for easy Marshal
+func (err ClientRegistrationError) PrettyJSON() string {
 	byt, e := json.MarshalIndent(err, "", "    ")
 	if e != nil {
 		log.Fatal(e)

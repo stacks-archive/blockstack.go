@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/blockstack/go-blockstack/blockstack"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -44,6 +45,17 @@ func Execute() {
 		log.Println(err)
 		os.Exit(1)
 	}
+}
+
+// register the clients before passing them to the indexer
+func registerClient(conf blockstack.ServerConfig) *blockstack.Client {
+	client := blockstack.NewClient(conf)
+	_, err := client.GetInfo()
+	if err != nil {
+		log.Printf("%s Failed to contact %s", serveLog, conf)
+		return nil
+	}
+	return client
 }
 
 func init() {
