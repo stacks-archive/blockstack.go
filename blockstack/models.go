@@ -701,7 +701,7 @@ type GetZonefilesResult struct {
 	Zonefiles map[string]string `json:"zonefiles"`
 }
 
-// Decode is an affordance that returns the results in map[string]string
+// Decode is an affordance that returns the results in map[zonefileHash]zonefile
 func (r GetZonefilesResult) Decode() map[string]string {
 	out := make(map[string]string)
 	for k := range r.Zonefiles {

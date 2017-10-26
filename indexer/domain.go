@@ -81,7 +81,8 @@ func (d *Domain) GetURI() *dns.URI {
 }
 
 // ResolveProfile takes an initialized domain and fetches the resulting profile for that domain
-func (d *Domain) ResolveProfile(sem chan struct{}) {
+// TODO: Make this fail early and often to prevent bottleneck
+func (d *Domain) ResolveProfile() {
 	// fmt.Println(d.Name)
 	URI := d.GetURI()
 	// Check that a URI was returned and there is a Target
@@ -118,5 +119,4 @@ func (d *Domain) ResolveProfile(sem chan struct{}) {
 		res.Body.Close()
 	}
 	d.lastResolved = time.Now()
-	<-sem
 }

@@ -10,20 +10,29 @@ import (
 
 // Config is a config object for the Indexer
 type Config struct {
-	DomainChanWorkers   int
+	IndexMethod         string
+	NamePageWorkers     int
+	ResolveWorkers      int
 	ConcurrentPageFetch int
 	URLs                []string
+	DBBatchSize         int
+	DBWorkers           int
 
 	clients       []*blockstack.Client
 	currentClient int
+
 	sync.Mutex
 }
 
 // NewConfig returns a new config object
-func NewConfig(clients []string, domainChanW int, pageFetchConc int) *Config {
+func NewConfig(clients []string, pageFetchConc, namePageWorkers, resolveWorkers, dbBatchSize, dbWorkers int, indexMethod string) *Config {
 	conf := &Config{
-		DomainChanWorkers:   domainChanW,
+		IndexMethod:         indexMethod,
+		NamePageWorkers:     namePageWorkers,
+		ResolveWorkers:      resolveWorkers,
 		ConcurrentPageFetch: pageFetchConc,
+		DBBatchSize:         dbBatchSize,
+		DBWorkers:           dbWorkers,
 		URLs:                clients,
 		currentClient:       0,
 	}

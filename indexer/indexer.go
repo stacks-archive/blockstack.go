@@ -7,10 +7,8 @@ import (
 	"github.com/blockstack/go-blockstack/blockstack"
 )
 
-// startBlock is the first block on the main bitcoin network
 const (
-	logPrefix      = "[indexer]"
-	resolveTimeout = 30
+	logPrefix = "[indexer]"
 )
 
 // The Indexer talks to blockstack-core and resolves all
@@ -23,37 +21,67 @@ type Indexer struct {
 	// Config holds all the config vars
 	Config *Config
 
-	// stats holds the prometheus statss
+	// stats holds the prometheus stats
 	stats *indexerStats
 
+	// currentBlock holds the currenBlock number
+	current *current
+
 	// nameChan handles the names coming back from fetching the full list of names
-	// the workers then process them and add the zonefiles to the domains
-	domainChan chan []*Domain
-	domainWait sync.WaitGroup
+	// the namePageWorkers then process them and add the zonefiles to the domains
+	namePageChan chan []*Domain
+	namePageWait sync.WaitGroup
 
 	// once the zonefiles are added then names travel down the resolve chan
 	// the workers then resolve them.
 	resolveChan chan *Domain
 	resolveWait sync.WaitGroup
 
+	// once the *Domains are resolved they are sent to the database batcher
+	// for insert/update of the MongoDB instance
+	dbChan chan *Domain
+	dbWait sync.WaitGroup
+
+	// TODO: Remove? This might still be helpful for the []*Domains object,
+	// but that might not be needed either once database is incorporated
 	sync.Mutex
-	sync.WaitGroup
 }
 
 // NewIndexer returns a new *Indexer
 func NewIndexer(conf *Config) *Indexer {
 	return &Indexer{
 		Domains: make([]*Domain, 0),
-		// Config:  NewConfig(clients, 100, 1000),
-		Config: conf,
+		Config:  conf,
 
-		domainChan:  make(chan []*Domain),
-		resolveChan: make(chan *Domain),
-		stats:       newIndexerStats(),
+		namePageChan: make(chan []*Domain),
+		resolveChan:  make(chan *Domain),
+		stats:        newIndexerStats(),
 	}
 }
 
-// client provides a convinent interface to loop through provided multiple clients
+// Start runs the Indexer
+func (i *Indexer) Start() {
+
+	// Kick off the client updater
+	go i.Config.runClientUpdater()
+
+	// Get the expected number of names in all namespaces
+	log.Println(logPrefix, "Fetching expected number of names...")
+	i.setExpectedNames()
+	log.Println(logPrefix, i.ExpectedNames, "found on the Blockstack Network, fetching...")
+
+	if i.Config.IndexMethod == "byName" {
+		log.Println(logPrefix, "Resolving all names...")
+		// TODO: Add waitGroup handling here and wait until the index is Done
+		// then exit. This will allow for looping!
+		go i.startByNames()
+	} else {
+		log.Printf("%s Invalid indexMethod '%s', byName and byBlock supported", logPrefix, i.Config.IndexMethod)
+	}
+}
+
+// client provides a convinent interface to loop through multiple
+// blockstack-core clients in a goroute safe manner
 func (i *Indexer) client() *blockstack.Client {
 	var client *blockstack.Client
 
@@ -78,9 +106,9 @@ func (i *Indexer) client() *blockstack.Client {
 
 	i.Config.Unlock()
 
-	// Increment the number of calls made in a goroutine
+	// Increment stats in a goroutine to avoid blocking
+	// Maybe add functions for this to indexerStats?
 	go func(s *indexerStats) {
-		// Lock the stats object to prevent concurrent access
 		i.stats.Lock()
 		i.stats.callsMade.Add(1)
 		i.stats.Unlock()
@@ -91,10 +119,13 @@ func (i *Indexer) client() *blockstack.Client {
 
 // Gets the expected number of names from blockstack-core
 func (i *Indexer) setExpectedNames() {
+	// First get the list of Namespaces
 	res, err := i.client().GetAllNamespaces()
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Then find the number of names in each Namespace
 	for _, ns := range res.Namespaces {
 		res, err := i.client().GetNumNamesInNamespace(ns)
 		if err != nil {
@@ -102,74 +133,30 @@ func (i *Indexer) setExpectedNames() {
 		}
 		i.ExpectedNames += res.Count
 	}
-	log.Println(logPrefix, "fetching all", i.ExpectedNames, "from the blockstack network")
+
+	// This is the only time this stat is set so no need to lock
 	i.stats.namesOnNetwork.Set(float64(i.ExpectedNames))
 }
 
-// processNameZonefileMap takes a map[name]zonefile and returns the go representation
-// TODO: Check this
-// func (i *Indexer) processNameZonefileMap() {
-// 	for name := range i.NameZonefileHash {
-// 		i.Domains = append(i.Domains, NewDomain(name, i.NameZonefileHash[name]))
-// 	}
-// }
+// setCB is a goroutine safe way to set the current block
+func (i *Indexer) setCB(block int) {
+	i.current.Lock()
+	i.current.block = block
+	i.current.Unlock()
+}
 
-// fetchAllZonefiles fetches all the zonefiles from the startBlock to the CurrentBlock
-// func (i *Indexer) fetchAllZonefiles() {
-// 	numBlocks := i.CurrentBlock - i.StartBlock
-// 	fetchBlocks := 100
-// 	iter := (numBlocks/fetchBlocks + 1)
-// 	for page := 0; page <= iter; page++ {
-// 		st := i.StartBlock + (page * fetchBlocks)
-// 		end := st + 100
-// 		log.Printf("%v Fetching zonefiles from block %v to block %v", logPrefix, st, end)
-// 		i.GetZonefilesByBlock(st, end)
-// 	}
-// }
-//
-// // GetZonefilesByBlock returns a map[name]zonefile
-// // TODO: Parallelize - difficult, need to keep blocks in order. Maybe hold off on this
-// func (i *Indexer) GetZonefilesByBlock(startBlock, endBlock int) {
-// 	zfhrs := make([]blockstack.ZonefileHashResults, 0)
-// 	iter := 0
-// 	for iter < 100000 {
-// 		// Fetch batch of Zonefiles by block
-// 		res, err := i.client().GetZonefilesByBlock(startBlock, endBlock, (iter * 100), 100)
-// 		if err != nil {
-// 			log.Fatal(err)
-// 		}
-// 		iter++
-//
-// 		// Make a batch that maps to a get_zonefiles rpc call
-// 		batch := make([]blockstack.ZonefileHashResult, 0)
-// 		for _, zfhrs := range res.ZonefileInfo {
-// 			batch = append(batch, zfhrs)
-// 		}
-//
-// 		// Save the batch
-// 		zfhrs = append(zfhrs, blockstack.ZonefileHashResults(batch))
-//
-// 		// If the batch doesn't have 100 records then stop
-// 		if len(res.ZonefileInfo) != 100 {
-// 			iter = 100000
-// 		}
-// 	}
-//
-// 	// Loop over the batches and call get_zonefile for each
-// 	for _, batch := range zfhrs {
-// 		res, err := i.client().GetZonefiles(batch.Zonefiles())
-// 		if err != nil {
-// 			log.Fatal(err)
-// 		}
-//
-// 		// Decode the base64 encoded zonefiles
-// 		dec := res.Decode()
-//
-// 		// Range over the decoded zonefiles and associate them with names
-// 		for zfh := range dec {
-// 			l := batch.LatestZonefileHash(zfh)
-// 			i.NameZonefileHash[l.Name] = dec[zfh]
-// 		}
-// 	}
-// 	i.stats.LastProcessed.Set(float64(endBlock))
-// }
+// GetCB reads the current block in a goroutine safe manner
+func (i *Indexer) GetCB() int {
+	var block int
+	i.current.Lock()
+	block = i.current.block
+	i.current.Unlock()
+	return block
+}
+
+// current holds the value of the current block as well as a mutex to prevent contention
+type current struct {
+	block int
+
+	sync.Mutex
+}

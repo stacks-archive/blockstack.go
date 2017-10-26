@@ -22,6 +22,7 @@ type indexerStats struct {
 	namesOnNetwork      prometheus.Gauge
 	timeSinceStart      prometheus.Gauge
 	sentDownResolveChan prometheus.Gauge
+	writtenToDatabase   prometheus.Gauge
 
 	sync.Mutex
 }
@@ -70,6 +71,12 @@ func newIndexerStats() *indexerStats {
 			Name:      "down_chan",
 			Help:      "the number names sent down the resolve channel",
 		}),
+		writtenToDatabase: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: promNameSpace,
+			Subsystem: "database",
+			Name:      "written",
+			Help:      "the number names inserted/updated on the database",
+		}),
 	}
 	prometheus.MustRegister(s.callsMade)
 	prometheus.MustRegister(s.namePagesFetched)
@@ -78,5 +85,6 @@ func newIndexerStats() *indexerStats {
 	prometheus.MustRegister(s.namesResolved)
 	prometheus.MustRegister(s.namesOnNetwork)
 	prometheus.MustRegister(s.sentDownResolveChan)
+	prometheus.MustRegister(s.writtenToDatabase)
 	return s
 }

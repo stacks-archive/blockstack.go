@@ -19,18 +19,23 @@ import (
 	"log"
 	"os"
 
-	"github.com/blockstack/go-blockstack/blockstack"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	cfgFile  string
-	hosts    []string
-	port     int
-	rootLog  = "[main]"
-	serveLog = "[server]"
+	cfgFile         string
+	pageFetchConc   int
+	namePageWorkers int
+	resolveWorkers  int
+	dbBatchSize     int
+	dbWorkers       int
+	indexMethod     string
+	hosts           []string
+	port            int
+	rootLog         = "[main]"
+	serveLog        = "[server]"
 )
 
 // RootCmd represents the base command when called without any subcommands
@@ -47,24 +52,25 @@ func Execute() {
 	}
 }
 
-// register the clients before passing them to the indexer
-func registerClient(conf blockstack.ServerConfig) *blockstack.Client {
-	client := blockstack.NewClient(conf)
-	_, err := client.GetInfo()
-	if err != nil {
-		log.Printf("%s Failed to contact %s", serveLog, conf)
-		return nil
-	}
-	return client
-}
-
 func init() {
 	cobra.OnInitialize(initConfig)
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.blockstack-indexer.yaml)")
 	RootCmd.PersistentFlags().StringSlice("hosts", []string{"https://node.blockstack.org:6263"}, "blockstack-core nodes to run indexer against")
 	RootCmd.PersistentFlags().IntVar(&port, "port", 3000, "port to run the prometheus metrics server on")
+	RootCmd.PersistentFlags().IntVar(&pageFetchConc, "pageFetchConc", 100, "number of namePages to fetch concurrently")
+	RootCmd.PersistentFlags().IntVar(&namePageWorkers, "namePageWorkers", 10, "number of workers to process namePages")
+	RootCmd.PersistentFlags().IntVar(&resolveWorkers, "resolveWorkers", 50, "number of workers to resolve names")
+	RootCmd.PersistentFlags().StringVar(&indexMethod, "indexMethod", "byName", "indexing method to employ")
+	RootCmd.PersistentFlags().IntVar(&dbBatchSize, "dbBatchSize", 20, "number of names to insert/update at same time")
+	RootCmd.PersistentFlags().IntVar(&dbWorkers, "dbWorkers", 4, "number of workers to manage inserts into database")
 	viper.BindPFlag("port", RootCmd.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("hosts", RootCmd.PersistentFlags().Lookup("hosts"))
+	viper.BindPFlag("pageFetchConc", RootCmd.PersistentFlags().Lookup("pageFetchConc"))
+	viper.BindPFlag("namePageWorkers", RootCmd.PersistentFlags().Lookup("namePageWorkers"))
+	viper.BindPFlag("resolveWorkers", RootCmd.PersistentFlags().Lookup("resolveWorkers"))
+	viper.BindPFlag("indexMethod", RootCmd.PersistentFlags().Lookup("indexMethod"))
+	viper.BindPFlag("dbBatchSize", RootCmd.PersistentFlags().Lookup("dbBatchSize"))
+	viper.BindPFlag("dbWorkers", RootCmd.PersistentFlags().Lookup("dbWorkers"))
 }
 
 func initConfig() {
