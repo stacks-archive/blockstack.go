@@ -2,6 +2,8 @@
 
 This is a cli tool to interact with the RPC interface on `blockstack-core`. It implements the following RPC methods:
 
+> TODO: Add a -debug or -verbose mode that outputs server info with each call
+
 - `get_all_names`
 - `get_all_namespaces`
 - `get_atlas_peers`

@@ -35,7 +35,7 @@ var (
 // RootCmd is the root command of the CLI
 var RootCmd = &cobra.Command{
 	Use:   "blockstack",
-	Short: "An RPC call runner for blockstack",
+	Short: "An RPC call runner for blockstackd",
 }
 
 // Execute runs the rest of the commands

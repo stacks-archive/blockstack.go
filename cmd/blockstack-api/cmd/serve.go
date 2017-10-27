@@ -31,7 +31,7 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "This serves the blockstack api",
 	Run: func(cmd *cobra.Command, args []string) {
-
+		// TODO: Implement the same multiclient thing here that I did over in the indexer
 		router := api.NewRouter(blockstack.ServerConfig{Address: "node.blockstack.org", Port: "6263", Scheme: "https"})
 		log.Println("Serving the blockstack-api on port", viper.GetInt("port"))
 		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", viper.GetInt("port")), router))

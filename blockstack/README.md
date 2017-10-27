@@ -32,7 +32,6 @@ This is an implementation of the [`blockstack-core`](https://github.com/blocksta
 - `get_consensus_hashes`
 - `get_nameops_affected_at`
 
-
 The following methods have not been implemented:
 
 - `get_mutable_data`

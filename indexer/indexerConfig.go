@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -25,31 +26,33 @@ type Config struct {
 	sync.Mutex
 }
 
-// NewConfig returns a new config object
-func NewConfig(clients []string, pageFetchConc, namePageWorkers, resolveWorkers, dbBatchSize, dbWorkers, updateInterval int, indexMethod string) *Config {
-	conf := &Config{
-		IndexMethod:          indexMethod,
-		NamePageWorkers:      namePageWorkers,
-		ResolveWorkers:       resolveWorkers,
-		ConcurrentPageFetch:  pageFetchConc,
-		DBBatchSize:          dbBatchSize,
-		DBWorkers:            dbWorkers,
-		URLs:                 clients,
-		ClientUpdateInterval: updateInterval,
-		currentClient:        0,
-	}
-	log.Println(logPrefix, "Setting valid clients...")
-	conf.setClients()
-	return conf
+func (c *Config) String() string {
+	return fmt.Sprintf(`Configuration Settings:
+  Number of Clients:            %v
+  Number of Name Page Workers:  %v
+  Number of Resolve Workers:    %v
+  Name Page Concurrency:        %v
+  Client Update Interval:       %v
+  Database Batch Size:          %v
+  Database Insert Workers:      %v`,
+		len(c.URLs),
+		c.NamePageWorkers,
+		c.ResolveWorkers,
+		c.ConcurrentPageFetch,
+		c.ClientUpdateInterval,
+		c.DBBatchSize,
+		c.DBWorkers,
+	)
 }
 
-// setClients takes the configured URLs and returns only
+// SetClients takes the configured URLs and returns only
 // the blockstack-core nodes that are in consensus
-func (c *Config) setClients() {
+func (c *Config) SetClients() {
 	clients, errs := blockstack.ValidClients(c.URLs)
 	for _, err := range errs {
+		er := err.(blockstack.ClientRegistrationError)
 		if err != nil {
-			log.Println(logPrefix, err.JSON())
+			log.Println(logPrefix, er.URL, er.Err)
 		}
 	}
 	c.Lock()
@@ -61,8 +64,8 @@ func (c *Config) setClients() {
 func (c *Config) runClientUpdater() {
 	log.Println(logPrefix, "Kicking off client update routine...")
 	for {
-		time.Sleep(5 * time.Minute)
+		time.Sleep(time.Duration(c.ClientUpdateInterval) * time.Minute)
 		log.Println(logPrefix, "Updating blockstack-core clients...")
-		c.setClients()
+		c.SetClients()
 	}
 }

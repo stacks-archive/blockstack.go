@@ -1,6 +1,6 @@
-# Blockstack Indexer
+# Blockstack API
 
-The `blockstack-indexer` connects to a `blockstack-core` node and pulls the data out for faster access. It is written in go and utilizes extensive parallelization for speed. It will expose an API as follows:
+The `blockstack-api` provides a performant interface for fetching data about the Blockstack network. Most of the calls make RPC calls against a configured `blockstack-core` node and return that data to the user. It can connect to multiple `blockstack-core` backends at once to enable scaling. It is written in go and utilizes extensive parallelization for speed. It will expose an API as follows:
 
 ```bash
 # implemented

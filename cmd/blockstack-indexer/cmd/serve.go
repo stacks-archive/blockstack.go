@@ -30,27 +30,23 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "starts the indexer and serves the metrics server",
 	Run: func(cmd *cobra.Command, args []string) {
-		cfgs := viper.GetStringSlice("hosts")
 		prt := viper.GetString("port")
-		im := viper.GetString("indexMethod")
-		pfc := viper.GetInt("pageFetchConc")
-		npw := viper.GetInt("namePageWorkers")
-		rw := viper.GetInt("resolveWorkers")
-		bs := viper.GetInt("dbBatchSize")
-		dbw := viper.GetInt("dbWorkers")
-		ui := viper.GetInt("updateInterval")
 
-		log.Println(serveLog, "indexMethod", im)
-		log.Println(serveLog, "hosts", len(cfgs))
-		log.Println(serveLog, "port", prt)
-		log.Println(serveLog, "pageFetchConc", pfc)
-		log.Println(serveLog, "namePageWorkers", npw)
-		log.Println(serveLog, "resolveWorkers", rw)
-		log.Println(serveLog, "dbBatchSize", bs)
-		log.Println(serveLog, "dbWorkers", dbw)
-		log.Println(serveLog, "updateInterval", ui)
+		cfg := &indexer.Config{
+			IndexMethod:          viper.GetString("indexMethod"),
+			NamePageWorkers:      viper.GetInt("namePageWorkers"),
+			ResolveWorkers:       viper.GetInt("resolveWorkers"),
+			ConcurrentPageFetch:  viper.GetInt("pageFetchConc"),
+			DBBatchSize:          viper.GetInt("dbBatchSize"),
+			DBWorkers:            viper.GetInt("dbWorkers"),
+			URLs:                 viper.GetStringSlice("hosts"),
+			ClientUpdateInterval: viper.GetInt("updateInterval"),
+		}
 
-		idx := indexer.NewIndexer(indexer.NewConfig(cfgs, pfc, npw, rw, bs, dbw, ui, im))
+		log.Println(serveLog, cfg)
+		log.Println(serveLog, "Setting valid clients...")
+		cfg.SetClients()
+		idx := indexer.NewIndexer(cfg)
 
 		go idx.Start()
 
