@@ -10,13 +10,14 @@ import (
 
 // Config is a config object for the Indexer
 type Config struct {
-	IndexMethod         string
-	NamePageWorkers     int
-	ResolveWorkers      int
-	ConcurrentPageFetch int
-	URLs                []string
-	DBBatchSize         int
-	DBWorkers           int
+	URLs                 []string
+	IndexMethod          string
+	NamePageWorkers      int
+	ResolveWorkers       int
+	ConcurrentPageFetch  int
+	ClientUpdateInterval int
+	DBBatchSize          int
+	DBWorkers            int
 
 	clients       []*blockstack.Client
 	currentClient int
@@ -25,16 +26,17 @@ type Config struct {
 }
 
 // NewConfig returns a new config object
-func NewConfig(clients []string, pageFetchConc, namePageWorkers, resolveWorkers, dbBatchSize, dbWorkers int, indexMethod string) *Config {
+func NewConfig(clients []string, pageFetchConc, namePageWorkers, resolveWorkers, dbBatchSize, dbWorkers, updateInterval int, indexMethod string) *Config {
 	conf := &Config{
-		IndexMethod:         indexMethod,
-		NamePageWorkers:     namePageWorkers,
-		ResolveWorkers:      resolveWorkers,
-		ConcurrentPageFetch: pageFetchConc,
-		DBBatchSize:         dbBatchSize,
-		DBWorkers:           dbWorkers,
-		URLs:                clients,
-		currentClient:       0,
+		IndexMethod:          indexMethod,
+		NamePageWorkers:      namePageWorkers,
+		ResolveWorkers:       resolveWorkers,
+		ConcurrentPageFetch:  pageFetchConc,
+		DBBatchSize:          dbBatchSize,
+		DBWorkers:            dbWorkers,
+		URLs:                 clients,
+		ClientUpdateInterval: updateInterval,
+		currentClient:        0,
 	}
 	log.Println(logPrefix, "Setting valid clients...")
 	conf.setClients()

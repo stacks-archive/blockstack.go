@@ -1,8 +1,11 @@
 # Blockstack Indexer
 
-The resolver runs through all the names in the blockstack network, pulls their zonefiles and resolves their profiles by fetching the data there. It persists this data in a mongodb instance to survive restarts and resyncs the data if the process dies.
+The resolver runs through all the names in the Blockstack network, pulls their Zonefiles and resolves their profiles by fetching the data there. It persists this data in a Mongodb instance to survive restarts and re-syncs the data if the process dies.
 
 The blockstack api runs an instance of the resolver to help manage responses. The resolver also has the database connection.
+
+
+# Implement Retries for the following methods:
 
 
 

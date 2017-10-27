@@ -1,16 +1,11 @@
 package indexer
 
 import (
-	// "log"
-	// "time"
-	"sync"
-
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
-	promNameSpace     = "indexer"
-	reportingInterval = 2
+	promNameSpace = "indexer"
 )
 
 type indexerStats struct {
@@ -23,10 +18,10 @@ type indexerStats struct {
 	timeSinceStart      prometheus.Gauge
 	sentDownResolveChan prometheus.Gauge
 	writtenToDatabase   prometheus.Gauge
-
-	sync.Mutex
 }
 
+// TODO: Add histogram for BlockstackCore Calls
+// TODO: Add histogram for profile resolution
 func newIndexerStats() *indexerStats {
 	s := &indexerStats{
 		callsMade: prometheus.NewGauge(prometheus.GaugeOpts{

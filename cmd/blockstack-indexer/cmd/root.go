@@ -63,6 +63,7 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&indexMethod, "indexMethod", "byName", "indexing method to employ")
 	RootCmd.PersistentFlags().IntVar(&dbBatchSize, "dbBatchSize", 20, "number of names to insert/update at same time")
 	RootCmd.PersistentFlags().IntVar(&dbWorkers, "dbWorkers", 4, "number of workers to manage inserts into database")
+	RootCmd.PersistentFlags().IntVar(&dbWorkers, "updateInterval", 5, "how frequently to update clients")
 	viper.BindPFlag("port", RootCmd.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("hosts", RootCmd.PersistentFlags().Lookup("hosts"))
 	viper.BindPFlag("pageFetchConc", RootCmd.PersistentFlags().Lookup("pageFetchConc"))
@@ -71,6 +72,7 @@ func init() {
 	viper.BindPFlag("indexMethod", RootCmd.PersistentFlags().Lookup("indexMethod"))
 	viper.BindPFlag("dbBatchSize", RootCmd.PersistentFlags().Lookup("dbBatchSize"))
 	viper.BindPFlag("dbWorkers", RootCmd.PersistentFlags().Lookup("dbWorkers"))
+	viper.BindPFlag("updateInterval", RootCmd.PersistentFlags().Lookup("updateInterval"))
 }
 
 func initConfig() {

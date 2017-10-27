@@ -16,45 +16,28 @@ const (
 type Indexer struct {
 	CurrentBlock  int
 	ExpectedNames int
-	Domains       []*Domain
+	Config        *Config
 
-	// Config holds all the config vars
-	Config *Config
-
-	// stats holds the prometheus stats
-	stats *indexerStats
-
-	// currentBlock holds the currenBlock number
-	current *current
-
-	// nameChan handles the names coming back from fetching the full list of names
-	// the namePageWorkers then process them and add the zonefiles to the domains
-	namePageChan chan []*Domain
+	stats        *indexerStats
+	current      *current
+	namePageChan chan Domains
+	// TODO: Use
 	namePageWait sync.WaitGroup
-
-	// once the zonefiles are added then names travel down the resolve chan
-	// the workers then resolve them.
-	resolveChan chan *Domain
+	resolveChan  chan *Domain
+	// TODO: Use
 	resolveWait sync.WaitGroup
-
-	// once the *Domains are resolved they are sent to the database batcher
-	// for insert/update of the MongoDB instance
-	dbChan chan *Domain
+	dbChan      chan *Domain
+	// TODO: Use
 	dbWait sync.WaitGroup
-
-	// TODO: Remove? This might still be helpful for the []*Domains object,
-	// but that might not be needed either once database is incorporated
-	sync.Mutex
 }
 
 // NewIndexer returns a new *Indexer
 func NewIndexer(conf *Config) *Indexer {
 	return &Indexer{
-		Domains: make([]*Domain, 0),
-		Config:  conf,
-
-		namePageChan: make(chan []*Domain),
+		Config:       conf,
+		namePageChan: make(chan Domains),
 		resolveChan:  make(chan *Domain),
+		dbChan:       make(chan *Domain),
 		stats:        newIndexerStats(),
 	}
 }
@@ -76,12 +59,11 @@ func (i *Indexer) Start() {
 		// then exit. This will allow for looping!
 		go i.startByNames()
 	} else {
-		log.Printf("%s Invalid indexMethod '%s', byName and byBlock supported", logPrefix, i.Config.IndexMethod)
+		log.Printf("%s Invalid indexMethod '%s', byName supported", logPrefix, i.Config.IndexMethod)
 	}
 }
 
-// client provides a convinent interface to loop through multiple
-// blockstack-core clients in a goroute safe manner
+// client loops through i.Config.clients and returns one
 func (i *Indexer) client() *blockstack.Client {
 	var client *blockstack.Client
 
@@ -106,30 +88,23 @@ func (i *Indexer) client() *blockstack.Client {
 
 	i.Config.Unlock()
 
-	// Increment stats in a goroutine to avoid blocking
-	// Maybe add functions for this to indexerStats?
-	go func(s *indexerStats) {
-		i.stats.Lock()
-		i.stats.callsMade.Add(1)
-		i.stats.Unlock()
-	}(i.stats)
-
+	i.stats.callsMade.Add(1)
 	return client
 }
 
 // Gets the expected number of names from blockstack-core
 func (i *Indexer) setExpectedNames() {
-	// First get the list of Namespaces
 	res, err := i.client().GetAllNamespaces()
 	if err != nil {
-		log.Fatal(err)
+		// TODO: Better error handling here
+		panic(err)
 	}
 
 	// Then find the number of names in each Namespace
 	for _, ns := range res.Namespaces {
 		res, err := i.client().GetNumNamesInNamespace(ns)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		i.ExpectedNames += res.Count
 	}

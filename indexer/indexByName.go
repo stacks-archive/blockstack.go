@@ -2,27 +2,29 @@ package indexer
 
 import (
 	"log"
-	// "time"
 )
 
-// StartByNames retrieves all the names from all namespaces
+// startByNames retrieves all the names from all namespaces
 func (i *Indexer) startByNames() {
-	// Start workers
-	go i.startNamePageWorkers()
-	go i.startResolveWorkers()
-	go i.startDBWorkers()
+	i.startWorkers()
 
-	// Fetch the list of namespaces
 	ns, err := i.client().GetAllNamespaces()
 	if err != nil {
-		log.Fatal(err)
+		// TODO: Better error handling here
+		panic(err)
 	}
 
-	// Set the current block
 	go i.setCB(ns.Lastblock)
 	for _, n := range ns.Namespaces {
 		go i.getAllNamePagesInNamespace(n)
 	}
+}
+
+// Starts all the worker routines
+func (i *Indexer) startWorkers() {
+	go i.startNamePageWorkers()
+	go i.startResolveWorkers()
+	go i.startDBWorkers()
 }
 
 // startNamePageWorkers kicks off i.Config.NamePageWorkers workers
@@ -49,12 +51,14 @@ func (i *Indexer) startDBWorkers() {
 	}
 }
 
-// getAllNamePagesInNamespace gets all the names in a namespace
+// getAllNamePagesInNamespace gets all the NamePages in a namespace
 func (i *Indexer) getAllNamePagesInNamespace(ns string) {
 	numNames, err := i.client().GetNumNamesInNamespace(ns)
 	if err != nil {
-		log.Fatal(err)
+		// TODO: Better error handling here
+		panic(err)
 	}
+
 	iter := (numNames.Count/100 + 1)
 	sem := make(chan struct{}, i.Config.ConcurrentPageFetch)
 	for page := 0; page <= iter; page++ {
@@ -67,74 +71,57 @@ func (i *Indexer) getAllNamePagesInNamespace(ns string) {
 func (i *Indexer) getNamePageAsync(page int, iter int, ns string, sem chan struct{}) {
 	namePage, err := i.client().GetNamesInNamespace(ns, page*100, 100)
 	if err != nil {
-		log.Fatal(err)
+		// TODO: Better error handling here
+		panic(err)
 	}
+
 	go i.setCB(namePage.Lastblock)
+
 	var domains []*Domain
 	for _, name := range namePage.Names {
-		// Fetch the name details here as well
 		dom := NewDomain(name)
 		res, err := i.client().GetNameAt(name, i.CurrentBlock)
 		if err != nil {
+			// TODO: Better error handling here
 			log.Println("Error fetching name details", err)
 		}
-		i.stats.nameDetailsFetched.Add(1)
 		dom.getNameAtRes = res
 		domains = append(domains, dom)
+		i.stats.nameDetailsFetched.Inc()
 	}
-	i.stats.namePagesFetched.Add(1)
+	i.stats.namePagesFetched.Inc()
 	i.namePageChan <- domains
 	<-sem
 }
 
-// handleNamePageChan handles the names coming back from blockstack core
-// then it fetches the zonefiles and appends them to i.Domains
+// handleNamePageChan handles namePages coming back from blockstack core
+// It fectches zonfiles and adds them to the *Domains, sending them for resolution
 func (i *Indexer) handleNamePageChan() {
-	// range over the namePageChan
 	for doms := range i.namePageChan {
 
-		// gather the zonefileHashes for the Domains
-		// and get the zonefiles for them
-		zfhs := Domains(doms).getZonefiles()
-		res, err := i.client().GetZonefiles(zfhs)
+		// Get zonefileHashes from Domains and get zonefiles
+		res, err := i.client().GetZonefiles(doms.getZonefileHashes())
 		if err != nil {
+			// TODO: Better error handling here
 			log.Fatal(logPrefix, err)
 		}
 
-		// set the current block and inc stats
 		go i.setCB(res.Lastblock)
-		i.stats.zonefilesFetched.Add(float64(len(zfhs)))
-
-		// Decode the base64 encoded zonefiles into map[zonefileHash]zonefile
-		zfs := res.Decode()
+		i.stats.zonefilesFetched.Add(float64(len(res.Zonefiles)))
 
 		// TODO: Double check behavior here. Make sure this is doing what you think it is
+		zonefiles := res.Decode()
 		for _, dom := range doms {
-			// If the *Domain has a zonefile associated add the zonefile to the domain
-			if len(dom.getNameAtRes.Records) > 0 && dom.getNameAtRes.Records[0].ValueHash != "" {
-				dom.AddZonefile(zfs[dom.getNameAtRes.Records[0].ValueHash])
+			if zonefileHash := dom.zonefileHash(); zonefileHash != "" {
+				dom.AddZonefile(zonefiles[zonefileHash])
 			}
-
-			// Send the name down the resolve chan
 			i.resolveChan <- dom
-
-			// Increment stats in a goroutine to avoid blocking
-			// Maybe add functions for this to indexerStats?
-			go func(s *indexerStats) {
-				s.Lock()
-				s.sentDownResolveChan.Inc()
-				s.Unlock()
-			}(i.stats)
+			i.stats.sentDownResolveChan.Inc()
 		}
 
-		// Currently checking for it being the last domain,
-		// This could leave some running routines
-		// Maybe kick off a namePageChanCloser at start?
-		if len(i.Domains) == i.ExpectedNames {
-			close(i.namePageChan)
-		}
+		// TODO: find a way to close this chan so that the waitgroup finishes
 	}
-
+	// TODO: Double check these WaitGroups
 	// Once the for loop exits decrement the WaitGroup
 	i.namePageWait.Done()
 }
@@ -142,42 +129,24 @@ func (i *Indexer) handleNamePageChan() {
 // handleResolveChan handles *Domain after they have zonefiles
 func (i *Indexer) handleResolveChan() {
 	for d := range i.resolveChan {
-		// Resolve the profile
-		d.ResolveProfile()
-
-		// Send the domain for persistence
+		if d.Profile != nil {
+			d.ResolveProfile()
+		}
 		i.dbChan <- d
-
-		// Increment the number of resolved names
-		go func(s *indexerStats) {
-			s.Lock()
-			s.namesResolved.Inc()
-			s.Unlock()
-		}(i.stats)
+		i.stats.namesResolved.Inc()
 	}
 }
 
 // handleDBChan batches *Domain for insert/update of the MongoDB instance
 func (i *Indexer) handleDBChan() {
-	var doms []*Domain
+	var doms Domains
 	for d := range i.dbChan {
-		// if the batch size has been reached then persist the domains and reset doms
 		if len(doms) >= i.Config.DBBatchSize {
-
 			// TODO: replace with actual DB calls
 			log.Println(logPrefix, "Sending", len(doms), "domains to the database...")
-
-			// Increment the number of names writtenToDatabase
-			go func(s *indexerStats, num int) {
-				s.Lock()
-				s.writtenToDatabase.Inc()
-				s.Unlock()
-			}(i.stats, len(doms))
-
-			// reset doms
-			doms = []*Domain{}
+			i.stats.writtenToDatabase.Inc()
+			doms = Domains{}
 		}
-
 		doms = append(doms, d)
 	}
 }

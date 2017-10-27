@@ -38,6 +38,7 @@ var serveCmd = &cobra.Command{
 		rw := viper.GetInt("resolveWorkers")
 		bs := viper.GetInt("dbBatchSize")
 		dbw := viper.GetInt("dbWorkers")
+		ui := viper.GetInt("updateInterval")
 
 		log.Println(serveLog, "indexMethod", im)
 		log.Println(serveLog, "hosts", len(cfgs))
@@ -47,15 +48,12 @@ var serveCmd = &cobra.Command{
 		log.Println(serveLog, "resolveWorkers", rw)
 		log.Println(serveLog, "dbBatchSize", bs)
 		log.Println(serveLog, "dbWorkers", dbw)
+		log.Println(serveLog, "updateInterval", ui)
 
-		// Create the indexer object with config
-		// (clients []string, pageFetchConc, namePageWorkers, resolveWorkers, dbBatchSize, dbWorkers int, indexMethod string)
-		idx := indexer.NewIndexer(indexer.NewConfig(cfgs, pfc, npw, rw, bs, dbw, im))
+		idx := indexer.NewIndexer(indexer.NewConfig(cfgs, pfc, npw, rw, bs, dbw, ui, im))
 
-		// Kick off the indexer in a goroutine. Currently it just runs once.
 		go idx.Start()
 
-		// Expose the registered metrics via HTTP.
 		http.Handle("/metrics", promhttp.Handler())
 		log.Printf("%v Serving the prometheus metrics for the indexing service on port :%v...", serveLog, prt)
 		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", prt), nil))
