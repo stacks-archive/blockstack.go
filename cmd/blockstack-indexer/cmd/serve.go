@@ -41,6 +41,7 @@ var serveCmd = &cobra.Command{
 			DBWorkers:            viper.GetInt("dbWorkers"),
 			URLs:                 viper.GetStringSlice("hosts"),
 			ClientUpdateInterval: viper.GetInt("updateInterval"),
+			MongoConnection:      viper.GetString("mongoConn"),
 		}
 
 		log.Println(serveLog, cfg)

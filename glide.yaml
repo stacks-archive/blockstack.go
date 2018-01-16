@@ -10,3 +10,4 @@ import:
   - prometheus/promhttp
 - package: github.com/spf13/cobra
 - package: github.com/spf13/viper
+- package: gopkg.in/mgo.v2

@@ -26,6 +26,7 @@ import (
 
 var (
 	cfgFile         string
+	mongoConn       string
 	pageFetchConc   int
 	namePageWorkers int
 	resolveWorkers  int
@@ -55,6 +56,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.blockstack-indexer.yaml)")
+	RootCmd.PersistentFlags().StringVar(&mongoConn, "mongoConn", "localhost", "a connection string to a mongodb instance")
 	RootCmd.PersistentFlags().StringSlice("hosts", []string{"https://node.blockstack.org:6263"}, "blockstack-core nodes to run indexer against")
 	RootCmd.PersistentFlags().IntVar(&port, "port", 3000, "port to run the prometheus metrics server on")
 	RootCmd.PersistentFlags().IntVar(&pageFetchConc, "pageFetchConc", 100, "number of namePages to fetch concurrently")
@@ -73,6 +75,7 @@ func init() {
 	viper.BindPFlag("dbBatchSize", RootCmd.PersistentFlags().Lookup("dbBatchSize"))
 	viper.BindPFlag("dbWorkers", RootCmd.PersistentFlags().Lookup("dbWorkers"))
 	viper.BindPFlag("updateInterval", RootCmd.PersistentFlags().Lookup("updateInterval"))
+	viper.BindPFlag("mongoConn", RootCmd.PersistentFlags().Lookup("mongoConn"))
 }
 
 func initConfig() {

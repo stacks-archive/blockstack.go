@@ -19,6 +19,7 @@ type Config struct {
 	ClientUpdateInterval int
 	DBBatchSize          int
 	DBWorkers            int
+	MongoConnection      string
 
 	clients       []*blockstack.Client
 	currentClient int
@@ -34,7 +35,8 @@ func (c *Config) String() string {
   Name Page Concurrency:        %v
   Client Update Interval:       %v
   Database Batch Size:          %v
-  Database Insert Workers:      %v`,
+  Database Insert Workers:      %v
+  Mongo Connection:             %v`,
 		len(c.URLs),
 		c.NamePageWorkers,
 		c.ResolveWorkers,
@@ -42,6 +44,7 @@ func (c *Config) String() string {
 		c.ClientUpdateInterval,
 		c.DBBatchSize,
 		c.DBWorkers,
+		c.MongoConnection,
 	)
 }
 
@@ -50,8 +53,8 @@ func (c *Config) String() string {
 func (c *Config) SetClients() {
 	clients, errs := blockstack.ValidClients(c.URLs)
 	for _, err := range errs {
-		er := err.(blockstack.ClientRegistrationError)
 		if err != nil {
+			er := err.(blockstack.ClientRegistrationError)
 			log.Println(logPrefix, er.URL, er.Err)
 		}
 	}

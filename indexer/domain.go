@@ -24,18 +24,17 @@ func NewDomain(name string) *Domain {
 
 // Domain models a Blockstack domain name
 type Domain struct {
-	Name string `json:"name"`
-	// Address  string    `json:"address"`
-	Zonefile *Zonefile `json:"zonefile"`
-	Profile  Profile   `json:"profile"`
+	Name             string                                   `json:"name"`
+	Zonefile         *Zonefile                                `json:"zonefile"`
+	Profile          Profile                                  `json:"profile"`
+	BlockchainRecord blockstack.GetNameBlockchainRecordResult `json:"blockchainRecord"`
 
-	getNameAtRes blockstack.GetNameAtResult
 	lastResolved time.Time
 }
 
 func (d *Domain) zonefileHash() string {
-	if len(d.getNameAtRes.Records) > 0 && d.getNameAtRes.Records[0].ValueHash != "" {
-		return d.getNameAtRes.Records[0].ValueHash
+	if d.BlockchainRecord.Record.ValueHash != "" {
+		return d.BlockchainRecord.Record.ValueHash
 	}
 	return ""
 }
@@ -123,10 +122,14 @@ func (d *Domain) ResolveProfile() {
 			if err != nil {
 				fmt.Printf("Error unmarshalling %v\nERROR: %v\nRES: %v\nTARGET: %v\n\n", d.Name, err, string(body), target)
 			}
+			d.Profile = &p2
 		} else {
 			if len(p1) > 0 {
 				d.Profile = &p1[0]
 			}
+		}
+		if d.Profile != nil {
+			fmt.Println(d.Profile.JSON())
 		}
 		res.Body.Close()
 	}
@@ -137,12 +140,13 @@ func (d *Domain) ResolveProfile() {
 type Domains []*Domain
 
 // getZonefileHashes returns an array of
-func (d Domains) getZonefileHashes() (out []string) {
+func (d Domains) getZonefileHashes() []string {
+	var out []string
 	for _, dom := range d {
-		recs := dom.getNameAtRes.Records
+		zfh := dom.zonefileHash()
 		// TODO: turn this into a method on domain
-		if len(recs) > 0 && recs[0].ValueHash != "" {
-			out = append(out, recs[0].ValueHash)
+		if zfh != "" {
+			out = append(out, zfh)
 		}
 	}
 	return out

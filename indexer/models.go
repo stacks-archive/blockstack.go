@@ -9,6 +9,7 @@ import (
 // LegacyProfiles
 type Profile interface {
 	JSON() string
+	Validate() bool
 }
 
 // SOProfile models a Schema.org profile

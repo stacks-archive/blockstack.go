@@ -5,10 +5,13 @@ import (
 	"sync"
 
 	"github.com/blockstack/go-blockstack/blockstack"
+	"gopkg.in/mgo.v2"
 )
 
 const (
-	logPrefix = "[indexer]"
+	logPrefix       = "[indexer]"
+	mongoDB         = "bsk"
+	mongoCollection = "profiles"
 )
 
 // The Indexer talks to blockstack-core and resolves all
@@ -18,6 +21,7 @@ type Indexer struct {
 	ExpectedNames int
 	Config        *Config
 
+	mongoConn    *mgo.Session
 	stats        *indexerStats
 	current      *current
 	namePageChan chan Domains
@@ -31,14 +35,40 @@ type Indexer struct {
 	dbWait sync.WaitGroup
 }
 
+func ensureIndex(s *mgo.Session) {
+	session := s.Copy()
+	session.SetMode(mgo.Monotonic, true)
+	defer session.Close()
+	c := session.DB(mongoDB).C(mongoCollection)
+	index := mgo.Index{
+		Key:        []string{"domain"},
+		Unique:     true,
+		DropDups:   true,
+		Background: true,
+		Sparse:     true,
+	}
+	err := c.EnsureIndex(index)
+	if err != nil {
+		panic(err)
+	}
+}
+
 // NewIndexer returns a new *Indexer
 func NewIndexer(conf *Config) *Indexer {
+	log.Println(logPrefix, "Connecting to mongodb at", conf.MongoConnection)
+	session, err := mgo.Dial(conf.MongoConnection)
+	if err != nil {
+		panic(err)
+	}
+	ensureIndex(session)
 	return &Indexer{
 		Config:       conf,
 		namePageChan: make(chan Domains),
 		resolveChan:  make(chan *Domain),
 		dbChan:       make(chan *Domain),
 		stats:        newIndexerStats(),
+		current:      &current{},
+		mongoConn:    session,
 	}
 }
 

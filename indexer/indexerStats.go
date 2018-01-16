@@ -18,6 +18,7 @@ type indexerStats struct {
 	timeSinceStart      prometheus.Gauge
 	sentDownResolveChan prometheus.Gauge
 	writtenToDatabase   prometheus.Gauge
+	withProfiles        prometheus.Gauge
 }
 
 // TODO: Add histogram for BlockstackCore Calls
@@ -72,6 +73,12 @@ func newIndexerStats() *indexerStats {
 			Name:      "written",
 			Help:      "the number names inserted/updated on the database",
 		}),
+		withProfiles: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: promNameSpace,
+			Subsystem: "profiles",
+			Name:      "names_with",
+			Help:      "the number of names with profiles",
+		}),
 	}
 	prometheus.MustRegister(s.callsMade)
 	prometheus.MustRegister(s.namePagesFetched)
@@ -81,5 +88,6 @@ func newIndexerStats() *indexerStats {
 	prometheus.MustRegister(s.namesOnNetwork)
 	prometheus.MustRegister(s.sentDownResolveChan)
 	prometheus.MustRegister(s.writtenToDatabase)
+	prometheus.MustRegister(s.withProfiles)
 	return s
 }

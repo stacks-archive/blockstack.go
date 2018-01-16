@@ -4,6 +4,10 @@ import (
 	"log"
 )
 
+var (
+	namePageSize = 100
+)
+
 // startByNames retrieves all the names from all namespaces
 func (i *Indexer) startByNames() {
 	i.startWorkers()
@@ -59,7 +63,7 @@ func (i *Indexer) getAllNamePagesInNamespace(ns string) {
 		panic(err)
 	}
 
-	iter := (numNames.Count/100 + 1)
+	iter := (numNames.Count/namePageSize + 1)
 	sem := make(chan struct{}, i.Config.ConcurrentPageFetch)
 	for page := 0; page <= iter; page++ {
 		sem <- struct{}{}
@@ -69,7 +73,7 @@ func (i *Indexer) getAllNamePagesInNamespace(ns string) {
 
 // A goroutine safe method for fetching the list of names from blockstack-core
 func (i *Indexer) getNamePageAsync(page int, iter int, ns string, sem chan struct{}) {
-	namePage, err := i.client().GetNamesInNamespace(ns, page*100, 100)
+	namePage, err := i.client().GetNamesInNamespace(ns, page*namePageSize, namePageSize)
 	if err != nil {
 		// TODO: Better error handling here
 		panic(err)
@@ -80,12 +84,12 @@ func (i *Indexer) getNamePageAsync(page int, iter int, ns string, sem chan struc
 	var domains []*Domain
 	for _, name := range namePage.Names {
 		dom := NewDomain(name)
-		res, err := i.client().GetNameAt(name, i.CurrentBlock)
+		res, err := i.client().GetNameBlockchainRecord(name)
 		if err != nil {
 			// TODO: Better error handling here
 			log.Println("Error fetching name details", err)
 		}
-		dom.getNameAtRes = res
+		dom.BlockchainRecord = res
 		domains = append(domains, dom)
 		i.stats.nameDetailsFetched.Inc()
 	}
@@ -114,6 +118,9 @@ func (i *Indexer) handleNamePageChan() {
 		for _, dom := range doms {
 			if zonefileHash := dom.zonefileHash(); zonefileHash != "" {
 				dom.AddZonefile(zonefiles[zonefileHash])
+				if dom.Profile != nil {
+					i.stats.withProfiles.Inc()
+				}
 			}
 			i.resolveChan <- dom
 			i.stats.sentDownResolveChan.Inc()
@@ -131,6 +138,9 @@ func (i *Indexer) handleResolveChan() {
 	for d := range i.resolveChan {
 		if d.Profile != nil {
 			d.ResolveProfile()
+			if d.Profile != nil {
+				i.stats.withProfiles.Inc()
+			}
 		}
 		i.dbChan <- d
 		i.stats.namesResolved.Inc()
@@ -139,14 +149,14 @@ func (i *Indexer) handleResolveChan() {
 
 // handleDBChan batches *Domain for insert/update of the MongoDB instance
 func (i *Indexer) handleDBChan() {
-	var doms Domains
 	for d := range i.dbChan {
-		if len(doms) >= i.Config.DBBatchSize {
-			// TODO: replace with actual DB calls
-			log.Println(logPrefix, "Sending", len(doms), "domains to the database...")
-			i.stats.writtenToDatabase.Inc()
-			doms = Domains{}
+		d.Profile.Validate()
+		session := i.mongoConn.Copy()
+		c := session.DB(mongoDB).C(mongoCollection)
+		err := c.Insert(d)
+		if err != nil {
+			log.Println(logPrefix, "MONGO", err)
 		}
-		doms = append(doms, d)
+		session.Close()
 	}
 }
