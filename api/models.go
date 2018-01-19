@@ -5,7 +5,7 @@ import (
 	// "fmt"
 	"log"
 
-	"github.com/blockstack/go-blockstack/indexer"
+	"github.com/blockstack/blockstack.go/indexer"
 )
 
 // V1GetNameResponse is the response for the /v1/names/:name

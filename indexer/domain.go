@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blockstack/go-blockstack/blockstack"
+	"github.com/blockstack/blockstack.go/blockstack"
 	"github.com/miekg/dns"
 )
 

@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/blockstack/go-blockstack/blockstack"
-	"github.com/blockstack/go-blockstack/indexer"
+	"github.com/blockstack/blockstack.go/blockstack"
+	"github.com/blockstack/blockstack.go/indexer"
 	"github.com/gorilla/mux"
 	"github.com/miekg/dns"
 )

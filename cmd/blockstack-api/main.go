@@ -15,7 +15,7 @@
 
 package main
 
-import "github.com/blockstack/go-blockstack/cmd/blockstack-api/cmd"
+import "github.com/blockstack/blockstack.go/cmd/blockstack-api/cmd"
 
 func main() {
 	cmd.Execute()

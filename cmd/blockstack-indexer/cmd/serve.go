@@ -20,7 +20,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/blockstack/go-blockstack/indexer"
+	"github.com/blockstack/blockstack.go/indexer"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

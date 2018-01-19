@@ -3,7 +3,7 @@ package blockstack_test
 import (
 	"testing"
 
-	"github.com/blockstack/go-blockstack/blockstack"
+	"github.com/blockstack/blockstack.go/blockstack"
 )
 
 var conf = blockstack.ServerConfig{

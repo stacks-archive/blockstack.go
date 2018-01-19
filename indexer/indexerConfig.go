@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/blockstack/go-blockstack/blockstack"
+	"github.com/blockstack/blockstack.go/blockstack"
 )
 
 // Config is a config object for the Indexer

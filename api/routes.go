@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/blockstack/go-blockstack/blockstack"
+	"github.com/blockstack/blockstack.go/blockstack"
 	"github.com/gorilla/mux"
-	// "github.com/blockstack/go-blockstack/indexer"
+	// "github.com/blockstack/blockstack.go/indexer"
 )
 
 // Route representes an indivdual route in the Blockstack API sever

@@ -20,8 +20,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/blockstack/go-blockstack/api"
-	"github.com/blockstack/go-blockstack/blockstack"
+	"github.com/blockstack/blockstack.go/api"
+	"github.com/blockstack/blockstack.go/blockstack"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

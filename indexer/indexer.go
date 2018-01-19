@@ -4,7 +4,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/blockstack/go-blockstack/blockstack"
+	"github.com/blockstack/blockstack.go/blockstack"
 	"gopkg.in/mgo.v2"
 )
 

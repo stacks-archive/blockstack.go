@@ -15,7 +15,7 @@
 
 package main
 
-import "github.com/blockstack/go-blockstack/cmd/blockstack-indexer/cmd"
+import "github.com/blockstack/blockstack.go/cmd/blockstack-indexer/cmd"
 
 func main() {
 	cmd.Execute()

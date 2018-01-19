@@ -1,4 +1,4 @@
-package: github.com/blockstack/go-blockstack
+package: github.com/blockstack/blockstack.go
 import:
 - package: github.com/gorilla/mux
 - package: github.com/kolo/xmlrpc
