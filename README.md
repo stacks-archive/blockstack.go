@@ -1,6 +1,6 @@
-![(https://goreportcard.com/badge/github.com/blockstack/blockstack.go/blockstack)](https://goreportcard.com/report/github.com/blockstack/blockstack.go/blockstack)
+[![Go Report Card](https://goreportcard.com/badge/github.com/blockstack/blockstack.go)](https://goreportcard.com/report/github.com/blockstack/blockstack.go)
 
-![(https://godoc.org/github.com/blockstack/blockstack.go/blockstack?status.svg)](http://godoc.org/github.com/blockstack/blockstack.go/blockstack)
+![(https://godoc.org/github.com/blockstack/blockstack.go?status.svg)](http://godoc.org/github.com/blockstack/blockstack.go)
 
 # WIP!
 
