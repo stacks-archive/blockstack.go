@@ -132,9 +132,9 @@ func NewClient(conf ServerConfig) *Client {
 
 // ServerConfig is connection details for an indivdual blockstack-core node
 type ServerConfig struct {
-	Address string
-	Port    string
-	Scheme  string
+	Address string `json:"address" yaml:"address"`
+	Port    string `json:"port" yaml:"port"`
+	Scheme  string `json:"scheme" yaml:"scheme"`
 }
 
 func (s ServerConfig) String() string {

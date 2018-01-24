@@ -67,12 +67,12 @@ func (i *Indexer) getAllNamePagesInNamespace(ns string) {
 	sem := make(chan struct{}, i.Config.ConcurrentPageFetch)
 	for page := 0; page <= iter; page++ {
 		sem <- struct{}{}
-		go i.getNamePageAsync(page, iter, ns, sem)
+		go i.getNamePageAsync(page, ns, sem)
 	}
 }
 
 // A goroutine safe method for fetching the list of names from blockstack-core
-func (i *Indexer) getNamePageAsync(page int, iter int, ns string, sem chan struct{}) {
+func (i *Indexer) getNamePageAsync(page int, ns string, sem chan struct{}) {
 	namePage, err := i.client().GetNamesInNamespace(ns, page*namePageSize, namePageSize)
 	if err != nil {
 		// TODO: Better error handling here
