@@ -1,0 +1,4 @@
+testServer:
+  address: "node.blockstack.org"
+  scheme: "https"
+  port: 6263
